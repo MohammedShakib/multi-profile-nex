@@ -622,9 +622,10 @@ function createProxyRedirectSanitizer(profileBasePath) {
           window.URL = new window.Proxy(NativeURL, {
             construct: function (target, args) {
               if (typeof args[0] === 'string') {
-                args[0] = args[0]
-                  .replace(/^https?:\/\/proxy\//i, window.location.origin + '/proxy/')
-                  .replace(/^https?:\/proxy\//i, window.location.origin + '/proxy/');
+                var normalizedUrlArgument = normalizeProxyUrl(args[0]);
+                if (normalizedUrlArgument !== args[0] && normalizedUrlArgument.indexOf('/proxy/') === 0) {
+                  args[0] = window.location.origin + normalizedUrlArgument;
+                }
               }
               return Reflect.construct(target, args);
             },
