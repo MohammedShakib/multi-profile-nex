@@ -208,18 +208,18 @@ const ProfileSelection = () => {
   };
 
   return (
-    <main className="relative min-h-screen w-full overflow-hidden bg-[#080d17] px-4 py-8 text-white sm:px-6">
+    <main className="relative min-h-[100svh] w-full overflow-hidden bg-[#080d17] px-3 py-4 text-white sm:px-6 sm:py-8">
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_8%,rgba(46,93,167,0.24),transparent_38%),linear-gradient(180deg,rgba(18,26,42,0.92)_0%,rgba(8,13,23,1)_62%)]" />
       <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/20 to-transparent" />
 
-      <section className="relative z-10 mx-auto flex min-h-[calc(100vh-4rem)] w-full max-w-[560px] flex-col items-center justify-center">
-        <div className="w-full rounded-[24px] border border-white/[0.08] bg-[#141c2b]/80 px-5 py-7 shadow-[0_24px_70px_rgba(0,0,0,0.34)] backdrop-blur-xl sm:px-8 sm:py-9">
+      <section className="relative z-10 mx-auto flex min-h-[calc(100svh-2rem)] w-full max-w-[560px] flex-col items-center justify-center sm:min-h-[calc(100svh-4rem)]">
+        <div className="w-full rounded-[22px] border border-white/[0.08] bg-[#141c2b]/80 px-4 py-6 shadow-[0_24px_70px_rgba(0,0,0,0.34)] backdrop-blur-xl sm:rounded-[24px] sm:px-8 sm:py-9">
           <div className="text-center">
-            <div className="mx-auto mb-7 flex justify-center drop-shadow-[0_18px_34px_rgba(244,63,94,0.18)]">
-              <img src="/novonex-logo.png" alt="NovoNex" className="h-auto w-[220px] max-w-full" />
+            <div className="mx-auto mb-6 flex justify-center drop-shadow-[0_18px_34px_rgba(244,63,94,0.18)] sm:mb-7">
+              <img src="/novonex-logo.png" alt="NovoNex" className="h-auto w-[185px] max-w-full sm:w-[220px]" />
             </div>
 
-            <h1 className="text-[30px] font-semibold leading-tight text-white sm:text-[32px]">
+            <h1 className="text-[28px] font-semibold leading-tight text-white sm:text-[32px]">
               Welcome back
             </h1>
             <p className="mt-2 text-sm font-medium text-slate-300">
@@ -227,7 +227,7 @@ const ProfileSelection = () => {
             </p>
           </div>
 
-          <div className="mt-8 space-y-3">
+          <div className="mt-7 space-y-3 sm:mt-8">
             {profiles.map((profile) => {
               const isLoading = loadingProfile === profile.id;
               const isDisabled = loadingProfile !== null && !isLoading;
@@ -240,10 +240,10 @@ const ProfileSelection = () => {
                   onClick={() => handleProfileSelect(profile)}
                   disabled={loadingProfile !== null}
                   aria-busy={isLoading}
-                  className={`group grid min-h-[84px] w-full grid-cols-[48px_minmax(0,1fr)_24px] items-center gap-4 rounded-2xl border border-white/[0.09] bg-white/[0.045] px-4 py-4 text-left shadow-lg shadow-black/10 outline-none transition duration-200 ease-out hover:-translate-y-0.5 hover:bg-white/[0.07] hover:shadow-2xl active:translate-y-0 active:scale-[0.99] sm:min-h-[88px] sm:grid-cols-[52px_minmax(0,1fr)_28px] sm:px-5 ${styles.border} ${styles.glow} ${styles.focus} ${isDisabled ? 'opacity-45 grayscale' : ''}`}
+                  className={`group grid min-h-[82px] w-full grid-cols-[44px_minmax(0,1fr)_22px] items-center gap-3 rounded-2xl border border-white/[0.09] bg-white/[0.045] px-3.5 py-3.5 text-left shadow-lg shadow-black/10 outline-none transition duration-200 ease-out hover:-translate-y-0.5 hover:bg-white/[0.07] hover:shadow-2xl active:translate-y-0 active:scale-[0.99] sm:min-h-[88px] sm:grid-cols-[52px_minmax(0,1fr)_28px] sm:gap-4 sm:px-5 sm:py-4 ${styles.border} ${styles.glow} ${styles.focus} ${isDisabled ? 'opacity-45 grayscale' : ''}`}
                 >
                   <span
-                    className={`relative flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl text-sm font-bold shadow-lg transition sm:h-13 sm:w-13 ${
+                    className={`relative flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl text-sm font-bold shadow-lg transition sm:h-13 sm:w-13 ${
                       isLoading ? 'bg-slate-700 text-white' : styles.avatar
                     }`}
                   >
@@ -261,21 +261,21 @@ const ProfileSelection = () => {
 
                   <span className="min-w-0">
                     <span className="flex min-w-0 items-center gap-2">
-                      <span className="truncate text-base font-semibold text-white sm:text-lg">
+                      <span className="truncate text-[15px] font-semibold text-white sm:text-lg">
                         {profile.title}
                       </span>
                     </span>
 
-                    <span className="mt-1 block truncate text-sm font-medium text-slate-300">
+                    <span className="mt-1 block truncate text-[13px] font-medium text-slate-300 sm:text-sm">
                       {profile.email}
                     </span>
-                    <span className={`mt-2 block text-xs font-semibold ${styles.text}`}>
+                    <span className={`mt-1.5 block text-[11px] font-semibold sm:mt-2 sm:text-xs ${styles.text}`}>
                       {profile.description || `${profile.label} profile`}
                     </span>
                   </span>
 
                   <span className="flex justify-end text-slate-300 transition duration-200 group-hover:translate-x-1 group-hover:text-white">
-                    <ChevronRight className="h-6 w-6" strokeWidth={2.1} />
+                    <ChevronRight className="h-5 w-5 sm:h-6 sm:w-6" strokeWidth={2.1} />
                   </span>
                 </button>
               );
@@ -284,7 +284,7 @@ const ProfileSelection = () => {
             <button
               type="button"
               onClick={() => setIsAddOpen(true)}
-              className="mx-auto mt-5 flex h-11 items-center justify-center gap-2 rounded-full border border-white/[0.08] bg-white/[0.045] px-5 text-sm font-semibold text-slate-200 outline-none transition hover:border-white/20 hover:bg-white/[0.075] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-300"
+              className="mx-auto mt-5 flex h-11 w-full items-center justify-center gap-2 rounded-full border border-white/[0.08] bg-white/[0.045] px-5 text-sm font-semibold text-slate-200 outline-none transition hover:border-white/20 hover:bg-white/[0.075] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-300 sm:w-auto"
             >
               <Plus className="h-4 w-4" strokeWidth={2.2} />
               Add profile
@@ -299,7 +299,7 @@ const ProfileSelection = () => {
       </section>
 
       {isAddOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/65 px-4 backdrop-blur-sm">
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/65 px-3 pb-3 backdrop-blur-sm sm:items-center sm:px-4 sm:pb-0">
           <form
             onSubmit={handleAddProfile}
             className="w-full max-w-[430px] rounded-[22px] border border-white/[0.09] bg-[#141c2b] p-5 shadow-[0_24px_70px_rgba(0,0,0,0.45)] sm:p-6"
