@@ -160,6 +160,16 @@ function rewriteLocationHeader(proxyRes, profileBasePath) {
     return;
   }
 
+  if (location.startsWith('proxy/')) {
+    proxyRes.headers.location = `/${location}`;
+    return;
+  }
+
+  if (location.startsWith('./proxy/')) {
+    proxyRes.headers.location = `/${location.slice(2)}`;
+    return;
+  }
+
   if (location.startsWith(TARGET_ORIGIN)) {
     proxyRes.headers.location = location.replace(TARGET_ORIGIN, profileBasePath);
     return;
@@ -484,6 +494,45 @@ function createLoginRedirectGuard(profileBasePath) {
         if (window.dig_mdet) window.dig_mdet.uri = dashboardPath;
         if (window._tutorobject) window._tutorobject.tutor_frontend_dashboard_url = dashboardPath;
       }
+      function normalizeResponseValue(value) {
+        if (typeof value !== 'string') return value;
+        var normalized = value.trim();
+        if (normalized.indexOf('https://proxy/') === 0) return normalized.replace('https://proxy', '');
+        if (normalized.indexOf('http://proxy/') === 0) return normalized.replace('http://proxy', '');
+        if (normalized.indexOf('//proxy/') === 0) return normalized.slice(1);
+        if (normalized.indexOf('./proxy/') === 0) return '/' + normalized.slice(2);
+        if (normalized.indexOf('proxy/') === 0) return '/' + normalized;
+        return value;
+      }
+      function normalizeResponseRedirects(value) {
+        if (!value || typeof value !== 'object') return value;
+        Object.keys(value).forEach(function (key) {
+          if (typeof value[key] === 'string') {
+            value[key] = normalizeResponseValue(value[key]);
+          } else if (value[key] && typeof value[key] === 'object') {
+            normalizeResponseRedirects(value[key]);
+          }
+        });
+        return value;
+      }
+      function patchAjaxRedirects() {
+        if (!window.jQuery || !window.jQuery.ajax || window.jQuery.ajax.__novonexRedirectPatch) return;
+        var originalAjax = window.jQuery.ajax;
+        var patchedAjax = function (options) {
+          if (options && typeof options === 'object' && typeof options.success === 'function') {
+            var originalSuccess = options.success;
+            options = Object.assign({}, options, {
+              success: function (response) {
+                normalizeResponseRedirects(response);
+                return originalSuccess.apply(this, arguments);
+              },
+            });
+          }
+          return originalAjax.apply(this, arguments.length > 1 ? arguments : [options]);
+        };
+        patchedAjax.__novonexRedirectPatch = true;
+        window.jQuery.ajax = patchedAjax;
+      }
       function hasSuccessMessage() {
         var text = (document.body && document.body.innerText || '').toLowerCase();
         return text.indexOf('login successful') !== -1
@@ -497,10 +546,12 @@ function createLoginRedirectGuard(profileBasePath) {
       }
       if (!isLoginRoute()) return;
       enforceDashboardTarget();
+      patchAjaxRedirects();
       var checks = 0;
       var interval = window.setInterval(function () {
         checks += 1;
         enforceDashboardTarget();
+        patchAjaxRedirects();
         if (hasSuccessMessage()) {
           window.clearInterval(interval);
           window.setTimeout(goDashboard, 80);
