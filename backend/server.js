@@ -160,27 +160,21 @@ function prepareProxyResponse(proxyRes, req, profileBasePath) {
 function createProfileSwitcher(profileBasePath) {
   const isPersonal = profileBasePath.endsWith('/p1');
   const currentLabel = isPersonal ? 'Personal' : 'Shared';
-  const targetLabel = isPersonal ? 'Shared' : 'Personal';
   const currentEmail = isPersonal ? 'ayemshakib2018@gmail.com' : 'theaicircle01@gmail.com';
   const targetBasePath = isPersonal ? '/proxy/p2' : '/proxy/p1';
   const currentInitial = isPersonal ? 'P' : 'S';
-  const targetInitial = isPersonal ? 'S' : 'P';
   const accentColor = isPersonal ? '#6366f1' : '#10b981';
 
   return `<div id="profile-switcher-root" style="position:fixed;right:18px;bottom:18px;z-index:2147483647;font-family:Inter,Arial,Helvetica,sans-serif;">
-  <button type="button" id="profile-switcher-button" title="Switch to ${targetLabel}" style="display:flex;align-items:center;gap:9px;max-width:min(92vw,390px);border:1px solid rgba(148,163,184,.32);background:linear-gradient(135deg,rgba(15,23,42,.96),rgba(30,41,59,.96));color:#fff;border-radius:18px;box-shadow:0 18px 45px rgba(0,0,0,.34),inset 0 1px 0 rgba(255,255,255,.08);padding:8px 9px;cursor:pointer;font-size:12px;font-weight:700;line-height:1;backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);">
-    <span style="display:flex;align-items:center;gap:8px;min-width:0;padding:6px 9px 6px 6px;border-radius:13px;background:rgba(255,255,255,.08);">
-      <span style="display:inline-flex;height:28px;min-width:28px;align-items:center;justify-content:center;border-radius:10px;background:${accentColor};box-shadow:0 8px 18px ${accentColor}55;font-size:12px;font-weight:800;">${currentInitial}</span>
+  <button type="button" id="profile-switcher-button" title="Switch profile" style="display:flex;align-items:center;gap:8px;max-width:min(92vw,260px);border:1px solid rgba(148,163,184,.32);background:linear-gradient(135deg,rgba(15,23,42,.96),rgba(30,41,59,.96));color:#fff;border-radius:16px;box-shadow:0 14px 34px rgba(0,0,0,.3),inset 0 1px 0 rgba(255,255,255,.08);padding:7px;cursor:pointer;font-size:12px;font-weight:700;line-height:1;backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);">
+    <span style="display:flex;align-items:center;gap:7px;min-width:0;padding:5px 9px 5px 5px;border-radius:12px;background:rgba(255,255,255,.08);">
+      <span style="display:inline-flex;height:26px;min-width:26px;align-items:center;justify-content:center;border-radius:9px;background:${accentColor};box-shadow:0 8px 18px ${accentColor}55;font-size:12px;font-weight:800;">${currentInitial}</span>
       <span style="display:flex;min-width:0;flex-direction:column;gap:3px;text-align:left;">
         <span style="font-size:13px;color:#fff;white-space:nowrap;">${currentLabel}</span>
-        <span style="max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:10px;font-weight:600;color:#cbd5e1;">${currentEmail}</span>
+        <span style="max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:10px;font-weight:600;color:#cbd5e1;">${currentEmail}</span>
       </span>
     </span>
-    <span aria-hidden="true" style="display:inline-flex;height:28px;min-width:28px;align-items:center;justify-content:center;border-radius:999px;background:rgba(255,255,255,.08);color:#cbd5e1;font-size:15px;">⇄</span>
-    <span style="display:flex;align-items:center;gap:7px;padding:6px 8px;border-radius:13px;background:rgba(255,255,255,.04);color:#e2e8f0;white-space:nowrap;">
-      <span style="display:inline-flex;height:24px;min-width:24px;align-items:center;justify-content:center;border-radius:9px;background:rgba(148,163,184,.2);font-size:11px;font-weight:800;">${targetInitial}</span>
-      <span>Switch to ${targetLabel}</span>
-    </span>
+    <span aria-hidden="true" style="display:inline-flex;height:32px;min-width:32px;align-items:center;justify-content:center;border-radius:12px;background:rgba(255,255,255,.1);color:#e2e8f0;font-size:16px;">⇄</span>
   </button>
   <script>
     (function () {
