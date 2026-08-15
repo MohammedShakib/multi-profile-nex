@@ -338,8 +338,20 @@ function rewriteTextResponse(body, profileBasePath, contentType = '') {
     .replace(/<base\b[^>]*>/gi, '')
     .replaceAll(`${TARGET_ORIGIN}/`, `${profileBasePath}/`)
     .replaceAll(TARGET_ORIGIN, profileBasePath)
+    .replaceAll('//nexcourses.com/', `${profileBasePath}/`)
+    .replaceAll('//www.nexcourses.com/', `${profileBasePath}/`)
     .replaceAll(`${escapedTarget}\\/`, `${escapedProfilePath}\\/`)
     .replaceAll(escapedTarget, escapedProfilePath)
+    .replaceAll('\\/\\/nexcourses.com\\/', `${escapedProfilePath}\\/`)
+    .replaceAll('\\/\\/www.nexcourses.com\\/', `${escapedProfilePath}\\/`)
+    .replace(
+      /(["'`])dashboard\/(?![A-Za-z0-9_-])/g,
+      (_match, quote) => `${quote}${profileBasePath}/dashboard/`,
+    )
+    .replace(
+      /(["'`])\\\/dashboard\\\/(?![A-Za-z0-9_-])/g,
+      (_match, quote) => `${quote}${escapedProfilePath}\\/dashboard\\/`,
+    )
     .replace(
       /\b(href|src|action)=("|')\/(?!\/|proxy\/|#)/gi,
       (_match, attribute, quote) => `${attribute}=${quote}${profileBasePath}/`,
@@ -358,10 +370,47 @@ function rewriteTextResponse(body, profileBasePath, contentType = '') {
     );
 
   if (/text\/html/i.test(contentType) && /<\/body>/i.test(rewrittenBody)) {
-    return rewrittenBody.replace(/<\/body>/i, `${createProfileSwitcher(profileBasePath)}</body>`);
+    return rewrittenBody.replace(
+      /<\/body>/i,
+      `${createLoginRedirectGuard(profileBasePath)}${createProfileSwitcher(profileBasePath)}</body>`,
+    );
   }
 
   return rewrittenBody;
+}
+
+function createLoginRedirectGuard(profileBasePath) {
+  return `<script>
+    (function () {
+      var profileBasePath = '${profileBasePath}';
+      var dashboardPath = profileBasePath + '/dashboard/';
+      function isLoginRoute() {
+        return window.location.pathname.indexOf(profileBasePath + '/login') === 0;
+      }
+      function hasSuccessMessage() {
+        var text = (document.body && document.body.innerText || '').toLowerCase();
+        return text.indexOf('login successful') !== -1
+          || text.indexOf('redirecting') !== -1 && text.indexOf('yay') !== -1;
+      }
+      function goDashboard() {
+        if (window.location.pathname !== dashboardPath) {
+          window.location.replace(dashboardPath);
+        }
+      }
+      if (!isLoginRoute()) return;
+      var checks = 0;
+      var interval = window.setInterval(function () {
+        checks += 1;
+        if (hasSuccessMessage()) {
+          window.clearInterval(interval);
+          window.setTimeout(goDashboard, 450);
+        }
+        if (checks > 80) {
+          window.clearInterval(interval);
+        }
+      }, 250);
+    })();
+  </script>`;
 }
 
 function shouldRewriteResponseBody(proxyRes) {
