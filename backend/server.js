@@ -600,7 +600,7 @@ function createLoginRedirectGuard(profileBasePath) {
 function shouldRewriteResponseBody(proxyRes) {
   const contentType = proxyRes.headers['content-type'] || '';
 
-  return /(text\/html|text\/css|application\/javascript|text\/javascript|application\/json|text\/json)/i.test(
+  return /(text\/html|text\/css|application\/javascript|application\/x-javascript|text\/javascript|application\/json|text\/json)/i.test(
     contentType,
   );
 }
