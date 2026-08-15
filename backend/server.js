@@ -127,10 +127,20 @@ function rewriteTextResponse(body, profileBasePath) {
 
   return body
     .replaceAll(`${TARGET_ORIGIN}/`, `${profileBasePath}/`)
+    .replaceAll(TARGET_ORIGIN, profileBasePath)
     .replaceAll(`${escapedTarget}\\/`, `${escapedProfilePath}\\/`)
+    .replaceAll(escapedTarget, escapedProfilePath)
     .replace(
       /\b(href|src|action)=("|')\/(?!\/|proxy\/|#)/gi,
       (_match, attribute, quote) => `${attribute}=${quote}${profileBasePath}/`,
+    )
+    .replace(
+      /(["'`])\/(?!\/|proxy\/|#)/g,
+      (_match, quote) => `${quote}${profileBasePath}/`,
+    )
+    .replace(
+      /(["'`])\\\/(?!\\\/|proxy\\\/|#)/g,
+      (_match, quote) => `${quote}${escapedProfilePath}\\/`,
     )
     .replace(
       /\burl\((["']?)\/(?!\/|proxy\/|#)/gi,
