@@ -5,7 +5,7 @@ const APP_SHELL = [
   '/novonex-plane-v2-192.png',
   '/novonex-plane-v2-512.png',
   '/novonex-plane-v2-apple.png',
-  '/manifest.webmanifest',
+  '/manifest-novonex.webmanifest',
   '/novonex-logo.png',
   '/novonex-logo-light.png',
 ];
