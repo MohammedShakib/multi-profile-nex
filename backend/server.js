@@ -9,7 +9,7 @@ import {
 
 const app = express();
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const distPath = path.join(__dirname, 'dist');
+const distPath = path.join(__dirname, '..', 'frontend', 'dist');
 
 const PORT = Number(process.env.PORT || 3001);
 const TARGET_ORIGIN = 'https://nexcourses.com';
