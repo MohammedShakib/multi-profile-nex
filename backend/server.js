@@ -1,5 +1,6 @@
 import express from 'express';
 import cors from 'cors';
+import https from 'node:https';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
@@ -14,6 +15,27 @@ const distPath = path.join(__dirname, '..', 'frontend', 'dist');
 const PORT = Number(process.env.PORT || 3001);
 const TARGET_ORIGIN = 'https://nexcourses.com';
 const TARGET_URL = `${TARGET_ORIGIN}/`;
+const upstreamAgent = new https.Agent({
+  keepAlive: true,
+  maxSockets: 64,
+  maxFreeSockets: 16,
+  timeout: 60000,
+});
+const cacheableAssetExtensions = new Set([
+  '.avif',
+  '.css',
+  '.gif',
+  '.ico',
+  '.jpeg',
+  '.jpg',
+  '.js',
+  '.png',
+  '.svg',
+  '.ttf',
+  '.webp',
+  '.woff',
+  '.woff2',
+]);
 
 // Configure the frontend origins that are allowed to call this backend.
 // Example: CORS_ORIGINS="http://localhost:5173,https://app.example.com"
@@ -121,6 +143,20 @@ function rewriteLocationHeader(proxyRes, profileBasePath) {
   }
 }
 
+function isCacheableAssetRequest(req) {
+  return cacheableAssetExtensions.has(path.extname(req.path || '').toLowerCase());
+}
+
+function prepareProxyResponse(proxyRes, req, profileBasePath) {
+  rewriteSetCookieHeader(proxyRes, profileBasePath);
+  rewriteLocationHeader(proxyRes, profileBasePath);
+
+  if (isCacheableAssetRequest(req) && !proxyRes.headers['set-cookie']) {
+    proxyRes.headers['cache-control'] =
+      'private, max-age=86400, stale-while-revalidate=604800';
+  }
+}
+
 function rewriteTextResponse(body, profileBasePath) {
   const escapedTarget = TARGET_ORIGIN.replace(/\//g, '\\/');
   const escapedProfilePath = profileBasePath.replace(/\//g, '\\/');
@@ -185,13 +221,13 @@ function createProfileProxyOptions(profileName, profileBasePath) {
   return {
     target: TARGET_URL,
     changeOrigin: true,
+    agent: upstreamAgent,
     xfwd: true,
     ws: true,
     secure: true,
     on: {
-      proxyRes(proxyRes) {
-        rewriteSetCookieHeader(proxyRes, profileBasePath);
-        rewriteLocationHeader(proxyRes, profileBasePath);
+      proxyRes(proxyRes, req) {
+        prepareProxyResponse(proxyRes, req, profileBasePath);
       },
       error(error, req, res) {
         handleProxyError(profileName, error, req, res);
@@ -226,8 +262,7 @@ function createProfileProxyRouter(profileName) {
         // Critical isolation: every Set-Cookie returned from NexCourses is
         // rewritten to the active profile route, so profile cookies do not
         // overlap in the same mobile browser.
-        rewriteSetCookieHeader(proxyRes, profileBasePath);
-        rewriteLocationHeader(proxyRes, profileBasePath);
+        prepareProxyResponse(proxyRes, req, profileBasePath);
 
         return interceptResponseBody(proxyRes, req, res);
       },
