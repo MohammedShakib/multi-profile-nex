@@ -158,29 +158,73 @@ function prepareProxyResponse(proxyRes, req, profileBasePath) {
 }
 
 function createProfileSwitcher(profileBasePath) {
-  const isPersonal = profileBasePath.endsWith('/p1');
-  const currentLabel = isPersonal ? 'Personal' : 'Shared';
-  const currentEmail = isPersonal ? 'ayemshakib2018@gmail.com' : 'theaicircle01@gmail.com';
-  const targetBasePath = isPersonal ? '/proxy/p2' : '/proxy/p1';
-  const currentInitial = isPersonal ? 'P' : 'S';
-  const accentColor = isPersonal ? '#6366f1' : '#10b981';
+  const profiles = [
+    {
+      basePath: '/proxy/p1',
+      label: 'Personal',
+      email: 'ayemshakib2018@gmail.com',
+      initial: 'P',
+      color: '#6366f1',
+    },
+    {
+      basePath: '/proxy/p2',
+      label: 'Shared',
+      email: 'theaicircle01@gmail.com',
+      initial: 'S',
+      color: '#10b981',
+    },
+  ];
+  const currentProfile = profiles.find((profile) => profile.basePath === profileBasePath) || profiles[0];
+  const profileRows = profiles
+    .map((profile) => {
+      const isActive = profile.basePath === profileBasePath;
+
+      return `<button type="button" class="profile-switcher-option" data-profile-base="${profile.basePath}" style="display:flex;width:100%;align-items:center;gap:10px;border:0;border-radius:12px;background:${isActive ? 'rgba(255,255,255,.1)' : 'transparent'};color:#fff;cursor:pointer;padding:9px 10px;text-align:left;">
+        <span style="display:inline-flex;height:28px;min-width:28px;align-items:center;justify-content:center;border-radius:10px;background:${profile.color};box-shadow:0 8px 18px ${profile.color}55;font-size:12px;font-weight:800;">${profile.initial}</span>
+        <span style="display:flex;min-width:0;flex:1;flex-direction:column;gap:4px;">
+          <span style="font-size:13px;font-weight:800;line-height:1;color:#fff;">${profile.label}</span>
+          <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11px;font-weight:600;line-height:1;color:#cbd5e1;">${profile.email}</span>
+        </span>
+        <span style="width:18px;text-align:center;color:${isActive ? '#e2e8f0' : 'transparent'};font-size:13px;font-weight:900;">✓</span>
+      </button>`;
+    })
+    .join('');
 
   return `<div id="profile-switcher-root" style="position:fixed;right:18px;bottom:18px;z-index:2147483647;display:flex;align-items:center;gap:8px;max-width:min(92vw,360px);min-height:58px;border:1px solid rgba(148,163,184,.3);background:linear-gradient(135deg,rgba(15,23,42,.9),rgba(30,41,59,.86));border-radius:20px;box-shadow:0 18px 48px rgba(0,0,0,.34),inset 0 1px 0 rgba(255,255,255,.08);padding:8px;font-family:Inter,Arial,Helvetica,sans-serif;backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);">
+  <div id="profile-switcher-menu" style="position:absolute;right:0;bottom:72px;display:none;width:min(86vw,292px);border:1px solid rgba(148,163,184,.32);background:linear-gradient(135deg,rgba(15,23,42,.98),rgba(30,41,59,.96));border-radius:18px;box-shadow:0 24px 60px rgba(0,0,0,.42),inset 0 1px 0 rgba(255,255,255,.08);padding:8px;color:#fff;backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);">
+    <div style="padding:6px 9px 8px;color:#94a3b8;font-size:11px;font-weight:800;letter-spacing:.02em;text-transform:uppercase;">Switch profile</div>
+    <div style="display:flex;flex-direction:column;gap:3px;">${profileRows}</div>
+    <div style="height:1px;margin:8px 4px;background:rgba(148,163,184,.24);"></div>
+    <button type="button" id="profile-add-button" title="Add profile" style="display:flex;width:100%;align-items:center;gap:10px;border:0;border-radius:12px;background:transparent;color:#cbd5e1;cursor:pointer;padding:9px 10px;text-align:left;font-size:12px;font-weight:800;">
+      <span style="display:inline-flex;height:28px;min-width:28px;align-items:center;justify-content:center;border-radius:10px;background:rgba(148,163,184,.16);font-size:16px;">+</span>
+      <span>Add profile</span>
+    </button>
+  </div>
   <button type="button" id="profile-home-button" title="Home" style="display:inline-flex;height:42px;min-width:42px;align-items:center;justify-content:center;border:1px solid rgba(255,255,255,.06);border-radius:14px;background:rgba(255,255,255,.07);color:#e2e8f0;cursor:pointer;font-size:17px;line-height:1;box-shadow:inset 0 1px 0 rgba(255,255,255,.05);">⌂</button>
   <button type="button" id="profile-switcher-button" title="Switch profile" style="display:flex;align-items:center;gap:10px;min-width:0;max-width:280px;min-height:42px;border:1px solid rgba(255,255,255,.06);background:rgba(255,255,255,.075);color:#fff;border-radius:14px;padding:7px 10px 7px 8px;cursor:pointer;font-size:12px;font-weight:700;line-height:1;box-shadow:inset 0 1px 0 rgba(255,255,255,.05);">
-    <span style="display:inline-flex;height:32px;min-width:32px;align-items:center;justify-content:center;border-radius:12px;background:${accentColor};box-shadow:0 10px 22px ${accentColor}55;font-size:13px;font-weight:800;">${currentInitial}</span>
+    <span style="display:inline-flex;height:32px;min-width:32px;align-items:center;justify-content:center;border-radius:12px;background:${currentProfile.color};box-shadow:0 10px 22px ${currentProfile.color}55;font-size:13px;font-weight:800;">${currentProfile.initial}</span>
     <span style="display:flex;min-width:0;flex:1;flex-direction:column;gap:4px;text-align:left;">
       <span style="display:flex;align-items:center;gap:6px;font-size:13px;color:#fff;white-space:nowrap;">
-        <span>${currentLabel}</span>
+        <span>${currentProfile.label}</span>
         <span style="color:#94a3b8;font-size:10px;">⌄</span>
       </span>
-      <span style="max-width:170px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:10px;font-weight:600;color:#cbd5e1;">${currentEmail}</span>
+      <span style="max-width:170px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:10px;font-weight:600;color:#cbd5e1;">${currentProfile.email}</span>
     </span>
   </button>
   <script>
     (function () {
+      var profiles = ${JSON.stringify(profiles)};
+      var currentBase = '${profileBasePath}';
       var button = document.getElementById('profile-switcher-button');
       var homeButton = document.getElementById('profile-home-button');
+      var menu = document.getElementById('profile-switcher-menu');
+      var addButton = document.getElementById('profile-add-button');
+      function switchToProfile(targetBase) {
+        var nextPath = window.location.pathname.indexOf(currentBase) === 0
+          ? targetBase + window.location.pathname.slice(currentBase.length)
+          : targetBase + '/dashboard/';
+        window.location.href = nextPath + window.location.search + window.location.hash;
+      }
       if (homeButton) {
         homeButton.addEventListener('mouseenter', function () {
           homeButton.style.background = 'rgba(255,255,255,.13)';
@@ -206,12 +250,29 @@ function createProfileSwitcher(profileBasePath) {
         button.style.borderColor = 'rgba(255,255,255,.06)';
       });
       button.addEventListener('click', function () {
-        var targetBase = '${targetBasePath}';
-        var sourceBase = '${profileBasePath}';
-        var nextPath = window.location.pathname.indexOf(sourceBase) === 0
-          ? targetBase + window.location.pathname.slice(sourceBase.length)
-          : targetBase + '/dashboard/';
-        window.location.href = nextPath + window.location.search + window.location.hash;
+        if (!menu) return;
+        menu.style.display = menu.style.display === 'none' || !menu.style.display ? 'block' : 'none';
+      });
+      document.querySelectorAll('.profile-switcher-option').forEach(function (option) {
+        option.addEventListener('click', function () {
+          var targetBase = option.getAttribute('data-profile-base');
+          if (!targetBase || targetBase === currentBase) {
+            if (menu) menu.style.display = 'none';
+            return;
+          }
+          switchToProfile(targetBase);
+        });
+      });
+      if (addButton) {
+        addButton.addEventListener('click', function () {
+          window.location.href = '/';
+        });
+      }
+      document.addEventListener('click', function (event) {
+        if (!menu || !menu.style.display || menu.style.display === 'none') return;
+        if (!document.getElementById('profile-switcher-root').contains(event.target)) {
+          menu.style.display = 'none';
+        }
       });
     })();
   </script>
