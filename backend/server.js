@@ -393,7 +393,11 @@ function rewriteTextResponse(body, profileBasePath, contentType = '') {
     .replaceAll('//proxy/', '/proxy/')
     .replaceAll('https:\\/\\/proxy\\/', '\\/proxy\\/')
     .replaceAll('http:\\/\\/proxy\\/', '\\/proxy\\/')
-    .replaceAll('\\/\\/proxy\\/', '\\/proxy\\/'), profileBasePath);
+    .replaceAll('\\/\\/proxy\\/', '\\/proxy\\/')
+    .replace(
+      'function parse_redirect_url(redirect){',
+      String.raw`function parse_redirect_url(redirect){if(typeof redirect==='string'){redirect=redirect.replace(/^https?:\/\/proxy/i,'').replace(/^\/\/proxy/i,'').replace(/^\.\/proxy\//i,'/proxy/').replace(/^proxy\//i,'/proxy/');}if(typeof redirect==='string'&&redirect.indexOf('/proxy/')===0){window.location.href=window.location.origin+redirect;return;}`,
+    ), profileBasePath);
 
   if (/text\/html/i.test(contentType)) {
     const withRedirectSanitizer = /<head\b[^>]*>/i.test(rewrittenBody)
