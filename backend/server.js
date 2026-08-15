@@ -36,6 +36,23 @@ const cacheableAssetExtensions = new Set([
   '.woff',
   '.woff2',
 ]);
+const defaultProfiles = [
+  {
+    basePath: '/proxy/p1',
+    label: 'Personal',
+    email: 'ayemshakib2018@gmail.com',
+    initial: 'P',
+    color: '#6366f1',
+  },
+  {
+    basePath: '/proxy/p2',
+    label: 'Shared',
+    email: 'theaicircle01@gmail.com',
+    initial: 'S',
+    color: '#10b981',
+  },
+];
+const profileProxyRouters = new Map();
 
 // Configure the frontend origins that are allowed to call this backend.
 // Example: CORS_ORIGINS="http://localhost:5173,https://app.example.com"
@@ -67,7 +84,7 @@ app.get('/health', (_req, res) => {
   res.json({
     ok: true,
     target: TARGET_URL,
-    profiles: ['/proxy/p1', '/proxy/p2'],
+    profiles: defaultProfiles.map((profile) => profile.basePath),
   });
 });
 
@@ -158,24 +175,15 @@ function prepareProxyResponse(proxyRes, req, profileBasePath) {
 }
 
 function createProfileSwitcher(profileBasePath) {
-  const profiles = [
-    {
-      basePath: '/proxy/p1',
-      label: 'Personal',
-      email: 'ayemshakib2018@gmail.com',
-      initial: 'P',
-      color: '#6366f1',
-    },
-    {
-      basePath: '/proxy/p2',
-      label: 'Shared',
-      email: 'theaicircle01@gmail.com',
-      initial: 'S',
-      color: '#10b981',
-    },
-  ];
-  const currentProfile = profiles.find((profile) => profile.basePath === profileBasePath) || profiles[0];
-  const profileRows = profiles
+  const profileId = profileBasePath.split('/').pop() || 'p1';
+  const currentProfile = defaultProfiles.find((profile) => profile.basePath === profileBasePath) || {
+    basePath: profileBasePath,
+    label: `Profile ${profileId.replace(/^p/, '')}`,
+    email: 'Custom profile',
+    initial: profileId.slice(0, 1).toUpperCase(),
+    color: '#64748b',
+  };
+  const profileRows = defaultProfiles
     .map((profile) => {
       const isActive = profile.basePath === profileBasePath;
 
@@ -198,7 +206,7 @@ function createProfileSwitcher(profileBasePath) {
     </button>
     <div style="height:1px;margin:8px 4px;background:rgba(148,163,184,.24);"></div>
     <div style="padding:6px 9px 8px;color:#94a3b8;font-size:11px;font-weight:800;letter-spacing:.02em;text-transform:uppercase;">Switch profile</div>
-    <div style="display:flex;flex-direction:column;gap:3px;">${profileRows}</div>
+    <div id="profile-switcher-options" style="display:flex;flex-direction:column;gap:3px;">${profileRows}</div>
     <div style="height:1px;margin:8px 4px;background:rgba(148,163,184,.24);"></div>
     <button type="button" id="profile-add-button" title="Add profile" style="display:flex;width:100%;align-items:center;gap:10px;border:0;border-radius:12px;background:transparent;color:#cbd5e1;cursor:pointer;padding:9px 10px;text-align:left;font-size:12px;font-weight:800;">
       <span style="display:inline-flex;height:28px;min-width:28px;align-items:center;justify-content:center;border-radius:10px;background:rgba(148,163,184,.16);font-size:16px;">+</span>
@@ -217,12 +225,62 @@ function createProfileSwitcher(profileBasePath) {
   </button>
   <script>
     (function () {
-      var profiles = ${JSON.stringify(profiles)};
+      var defaultProfiles = ${JSON.stringify(defaultProfiles)};
       var currentBase = '${profileBasePath}';
       var button = document.getElementById('profile-switcher-button');
       var homeButton = document.getElementById('profile-home-button');
       var menu = document.getElementById('profile-switcher-menu');
       var addButton = document.getElementById('profile-add-button');
+      function getStoredProfiles() {
+        try {
+          return JSON.parse(window.localStorage.getItem('novonex_profiles') || '[]');
+        } catch (error) {
+          return [];
+        }
+      }
+      function normalizeProfile(profile) {
+        var basePath = profile.basePath || (profile.proxyPath ? profile.proxyPath.replace(/\\/dashboard\\/$|\\/$/, '') : '');
+        if (!basePath || basePath.indexOf('/proxy/') !== 0) return null;
+        var label = profile.label || profile.title || 'Profile';
+        return {
+          basePath: basePath,
+          label: label.replace(/ Profile$/, ''),
+          email: profile.email || 'Custom profile',
+          initial: profile.initial || label.slice(0, 1).toUpperCase(),
+          color: profile.color || '#64748b'
+        };
+      }
+      function getProfiles() {
+        var merged = defaultProfiles.concat(getStoredProfiles().map(normalizeProfile).filter(Boolean));
+        return merged.filter(function (profile, index, list) {
+          return list.findIndex(function (item) { return item.basePath === profile.basePath; }) === index;
+        });
+      }
+      function renderProfiles() {
+        var list = document.getElementById('profile-switcher-options');
+        if (!list) return;
+        list.innerHTML = getProfiles().map(function (profile) {
+          var active = profile.basePath === currentBase;
+          return '<button type="button" class="profile-switcher-option" data-profile-base="' + profile.basePath + '" style="display:flex;width:100%;align-items:center;gap:10px;border:0;border-radius:12px;background:' + (active ? 'rgba(255,255,255,.1)' : 'transparent') + ';color:#fff;cursor:pointer;padding:9px 10px;text-align:left;">'
+            + '<span style="display:inline-flex;height:28px;min-width:28px;align-items:center;justify-content:center;border-radius:10px;background:' + profile.color + ';box-shadow:0 8px 18px ' + profile.color + '55;font-size:12px;font-weight:800;">' + profile.initial + '</span>'
+            + '<span style="display:flex;min-width:0;flex:1;flex-direction:column;gap:4px;">'
+            + '<span style="font-size:13px;font-weight:800;line-height:1;color:#fff;">' + profile.label + '</span>'
+            + '<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11px;font-weight:600;line-height:1;color:#cbd5e1;">' + profile.email + '</span>'
+            + '</span>'
+            + '<span style="width:18px;text-align:center;color:' + (active ? '#e2e8f0' : 'transparent') + ';font-size:13px;font-weight:900;">✓</span>'
+            + '</button>';
+        }).join('');
+        list.querySelectorAll('.profile-switcher-option').forEach(function (option) {
+          option.addEventListener('click', function () {
+            var targetBase = option.getAttribute('data-profile-base');
+            if (!targetBase || targetBase === currentBase) {
+              if (menu) menu.style.display = 'none';
+              return;
+            }
+            switchToProfile(targetBase);
+          });
+        });
+      }
       function switchToProfile(targetBase) {
         var nextPath = window.location.pathname.indexOf(currentBase) === 0
           ? targetBase + window.location.pathname.slice(currentBase.length)
@@ -241,6 +299,7 @@ function createProfileSwitcher(profileBasePath) {
         });
       }
       if (!button) return;
+      renderProfiles();
       button.addEventListener('mouseenter', function () {
         button.style.transform = 'translateY(-1px)';
         button.style.background = 'rgba(255,255,255,.13)';
@@ -255,19 +314,9 @@ function createProfileSwitcher(profileBasePath) {
         if (!menu) return;
         menu.style.display = menu.style.display === 'none' || !menu.style.display ? 'block' : 'none';
       });
-      document.querySelectorAll('.profile-switcher-option').forEach(function (option) {
-        option.addEventListener('click', function () {
-          var targetBase = option.getAttribute('data-profile-base');
-          if (!targetBase || targetBase === currentBase) {
-            if (menu) menu.style.display = 'none';
-            return;
-          }
-          switchToProfile(targetBase);
-        });
-      });
       if (addButton) {
         addButton.addEventListener('click', function () {
-          window.location.href = '/';
+          window.location.href = '/?addProfile=1';
         });
       }
       document.addEventListener('click', function (event) {
@@ -430,8 +479,20 @@ function createProfileProxyRouter(profileName) {
   };
 }
 
-app.use('/proxy/p1', createProfileProxyRouter('p1'));
-app.use('/proxy/p2', createProfileProxyRouter('p2'));
+app.use('/proxy/:profileName', (req, res, next) => {
+  const profileName = req.params.profileName;
+
+  if (!/^[a-z0-9-]{1,32}$/i.test(profileName)) {
+    res.status(404).json({ error: 'Unknown profile' });
+    return;
+  }
+
+  if (!profileProxyRouters.has(profileName)) {
+    profileProxyRouters.set(profileName, createProfileProxyRouter(profileName));
+  }
+
+  profileProxyRouters.get(profileName)(req, res, next);
+});
 
 app.use(express.static(distPath));
 
