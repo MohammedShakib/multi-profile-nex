@@ -344,7 +344,7 @@ function rewriteTextResponse(body, profileBasePath, contentType = '') {
   const escapedTarget = TARGET_ORIGIN.replace(/\//g, '\\/');
   const escapedProfilePath = profileBasePath.replace(/\//g, '\\/');
 
-  const rewrittenBody = body
+  const rewrittenBody = rewriteLoginRedirectTargets(body
     .replace(/<base\b[^>]*>/gi, '')
     .replaceAll(`${TARGET_ORIGIN}/`, `${profileBasePath}/`)
     .replaceAll(TARGET_ORIGIN, profileBasePath)
@@ -383,7 +383,7 @@ function rewriteTextResponse(body, profileBasePath, contentType = '') {
     .replaceAll('//proxy/', '/proxy/')
     .replaceAll('https:\\/\\/proxy\\/', '\\/proxy\\/')
     .replaceAll('http:\\/\\/proxy\\/', '\\/proxy\\/')
-    .replaceAll('\\/\\/proxy\\/', '\\/proxy\\/');
+    .replaceAll('\\/\\/proxy\\/', '\\/proxy\\/'), profileBasePath);
 
   if (/text\/html/i.test(contentType)) {
     const withRedirectSanitizer = /<head\b[^>]*>/i.test(rewrittenBody)
@@ -406,18 +406,39 @@ function rewriteTextResponse(body, profileBasePath, contentType = '') {
   return rewrittenBody;
 }
 
+function rewriteLoginRedirectTargets(body, profileBasePath) {
+  const dashboardPath = `${profileBasePath}/dashboard/`;
+
+  return body.replace(
+    /<input\b(?=[^>]*\bname=(["'])digits_redirect_page\1)[^>]*>/gi,
+    (tag) => {
+      if (/\bvalue=(["'])[^"']*\1/i.test(tag)) {
+        return tag.replace(/\bvalue=(["'])[^"']*\1/i, `value="${dashboardPath}"`);
+      }
+
+      if (/\/\s*>$/.test(tag)) {
+        return tag.replace(/\/\s*>$/, ` value="${dashboardPath}"/>`);
+      }
+
+      return tag.replace(/>$/, ` value="${dashboardPath}">`);
+    },
+  );
+}
+
 function createProxyRedirectSanitizer(profileBasePath) {
   return `<script>
     (function () {
       var profileBasePath = '${profileBasePath}';
+      var dashboardPath = profileBasePath + '/dashboard/';
       function normalizeProxyUrl(value) {
         if (!value || typeof value !== 'string') return value;
         var url = value.trim();
+        if (url === 'proxy' || url === '/proxy' || url === './proxy') return dashboardPath;
         if (url.indexOf('https://proxy/') === 0) return url.replace('https://proxy', '');
         if (url.indexOf('http://proxy/') === 0) return url.replace('http://proxy', '');
         if (url.indexOf('//proxy/') === 0) return url.slice(1);
         if (url.indexOf('proxy/') === 0) return '/' + url;
-        if (url === 'proxy') return profileBasePath + '/dashboard/';
+        if (url.indexOf('./proxy/') === 0) return '/' + url.slice(2);
         return value;
       }
       try {
@@ -439,8 +460,29 @@ function createLoginRedirectGuard(profileBasePath) {
     (function () {
       var profileBasePath = '${profileBasePath}';
       var dashboardPath = profileBasePath + '/dashboard/';
+      function normalizeProxyUrl(value) {
+        if (!value || typeof value !== 'string') return value;
+        var url = value.trim();
+        if (url === 'proxy' || url === '/proxy' || url === './proxy') return dashboardPath;
+        if (url.indexOf('https://proxy/') === 0) return url.replace('https://proxy', '');
+        if (url.indexOf('http://proxy/') === 0) return url.replace('http://proxy', '');
+        if (url.indexOf('//proxy/') === 0) return url.slice(1);
+        if (url.indexOf('proxy/') === 0) return '/' + url;
+        if (url.indexOf('./proxy/') === 0) return '/' + url.slice(2);
+        if (url.indexOf('/dashboard') === 0 || url.indexOf('dashboard') === 0) return dashboardPath;
+        return value;
+      }
       function isLoginRoute() {
         return window.location.pathname.indexOf(profileBasePath + '/login') === 0;
+      }
+      function enforceDashboardTarget() {
+        var inputs = document.querySelectorAll('input[name="digits_redirect_page"]');
+        for (var index = 0; index < inputs.length; index += 1) {
+          inputs[index].value = dashboardPath;
+        }
+        if (window.dig_log_obj) window.dig_log_obj.uri = dashboardPath;
+        if (window.dig_mdet) window.dig_mdet.uri = dashboardPath;
+        if (window._tutorobject) window._tutorobject.tutor_frontend_dashboard_url = dashboardPath;
       }
       function hasSuccessMessage() {
         var text = (document.body && document.body.innerText || '').toLowerCase();
@@ -448,22 +490,40 @@ function createLoginRedirectGuard(profileBasePath) {
           || text.indexOf('redirecting') !== -1 && text.indexOf('yay') !== -1;
       }
       function goDashboard() {
+        enforceDashboardTarget();
         if (window.location.pathname !== dashboardPath) {
           window.location.replace(dashboardPath);
         }
       }
       if (!isLoginRoute()) return;
+      enforceDashboardTarget();
       var checks = 0;
       var interval = window.setInterval(function () {
         checks += 1;
+        enforceDashboardTarget();
         if (hasSuccessMessage()) {
           window.clearInterval(interval);
-          window.setTimeout(goDashboard, 450);
+          window.setTimeout(goDashboard, 80);
         }
         if (checks > 80) {
           window.clearInterval(interval);
         }
-      }, 250);
+      }, 100);
+      document.addEventListener('submit', function () {
+        enforceDashboardTarget();
+      }, true);
+      document.addEventListener('click', function (event) {
+        var target = event.target;
+        if (target && target.closest && target.closest('button, input[type="submit"], .digits_login, .digit_send_otp')) {
+          enforceDashboardTarget();
+        }
+      }, true);
+      window.addEventListener('beforeunload', function () {
+        var normalized = normalizeProxyUrl(window.location.pathname);
+        if (normalized !== window.location.pathname && normalized.indexOf('/proxy/') === 0) {
+          window.history.replaceState(null, '', normalized);
+        }
+      });
     })();
   </script>`;
 }
