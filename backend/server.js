@@ -218,7 +218,18 @@ function createProfileSwitcher(profileBasePath) {
     })
     .join('');
 
-  return `<div id="profile-switcher-root" style="position:fixed;right:18px;bottom:18px;z-index:2147483647;display:flex;align-items:center;gap:8px;max-width:min(92vw,360px);min-height:58px;border:1px solid rgba(148,163,184,.3);background:linear-gradient(135deg,rgba(15,23,42,.9),rgba(30,41,59,.86));border-radius:20px;box-shadow:0 18px 48px rgba(0,0,0,.34),inset 0 1px 0 rgba(255,255,255,.08);padding:8px;font-family:Inter,Arial,Helvetica,sans-serif;backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);">
+  return `<style id="profile-switcher-styles">
+    #profile-switcher-root.profile-switcher-dock { position:fixed;right:18px;bottom:18px;z-index:2147483647;display:flex;align-items:center;gap:8px;max-width:min(92vw,360px);min-height:58px;border:1px solid rgba(148,163,184,.3);background:linear-gradient(135deg,rgba(15,23,42,.9),rgba(30,41,59,.86));border-radius:20px;box-shadow:0 18px 48px rgba(0,0,0,.34),inset 0 1px 0 rgba(255,255,255,.08);padding:8px;font-family:Inter,Arial,Helvetica,sans-serif;backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px); }
+    #profile-switcher-root.profile-switcher-dock.profile-dock-positioned { right:auto;bottom:auto; }
+    #profile-switcher-root #profile-switcher-button { touch-action:none; }
+    @media (max-width:640px) {
+      #profile-switcher-root.profile-switcher-dock { width:58px; height:58px;min-width:58px;max-width:58px;min-height:58px;padding:4px;border-radius:20px; }
+      #profile-switcher-root #profile-switcher-button { width:48px !important;height:48px !important;min-width:48px !important;max-width:48px !important;min-height:48px !important;padding:3px !important;justify-content:center;border-radius:16px; }
+      #profile-switcher-root #profile-switcher-button .profile-switcher-avatar { width:42px !important;height:42px !important;min-width:42px !important;border-radius:14px;font-size:14px; }
+      #profile-switcher-root #profile-switcher-button .profile-switcher-details { display:none !important; }
+      #profile-switcher-root #profile-switcher-menu { position:fixed !important;right:auto !important;bottom:auto !important;width:min(86vw,292px); }
+    }
+  </style>
   <div id="profile-switcher-menu" style="position:absolute;right:0;bottom:72px;display:none;width:min(86vw,292px);border:1px solid rgba(148,163,184,.32);background:linear-gradient(135deg,rgba(15,23,42,.98),rgba(30,41,59,.96));border-radius:18px;box-shadow:0 24px 60px rgba(0,0,0,.42),inset 0 1px 0 rgba(255,255,255,.08);padding:8px;color:#fff;backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);">
     <button type="button" id="profile-home-button" title="Home" style="display:flex;width:100%;align-items:center;gap:10px;border:0;border-radius:12px;background:rgba(255,255,255,.07);color:#e2e8f0;cursor:pointer;padding:9px 10px;text-align:left;font-size:12px;font-weight:800;">
       <span style="display:inline-flex;height:28px;min-width:28px;align-items:center;justify-content:center;border-radius:10px;background:rgba(148,163,184,.16);font-size:14px;">⌂</span>
@@ -233,9 +244,9 @@ function createProfileSwitcher(profileBasePath) {
       <span>Add profile</span>
     </button>
   </div>
-  <button type="button" id="profile-switcher-button" title="Switch profile" style="display:flex;align-items:center;gap:10px;min-width:0;max-width:280px;min-height:42px;border:1px solid rgba(255,255,255,.06);background:rgba(255,255,255,.075);color:#fff;border-radius:14px;padding:7px 10px 7px 8px;cursor:pointer;font-size:12px;font-weight:700;line-height:1;box-shadow:inset 0 1px 0 rgba(255,255,255,.05);">
-    <span style="display:inline-flex;height:32px;min-width:32px;align-items:center;justify-content:center;border-radius:12px;background:${currentProfile.color};box-shadow:0 10px 22px ${currentProfile.color}55;font-size:13px;font-weight:800;">${currentProfile.initial}</span>
-    <span style="display:flex;min-width:0;flex:1;flex-direction:column;gap:4px;text-align:left;">
+  <button type="button" id="profile-switcher-button" title="Open profile switcher" aria-label="Open profile switcher" style="display:flex;align-items:center;gap:10px;min-width:0;max-width:280px;min-height:42px;border:1px solid rgba(255,255,255,.06);background:rgba(255,255,255,.075);color:#fff;border-radius:14px;padding:7px 10px 7px 8px;cursor:pointer;font-size:12px;font-weight:700;line-height:1;box-shadow:inset 0 1px 0 rgba(255,255,255,.05);">
+    <span class="profile-switcher-avatar" style="display:inline-flex;height:32px;min-width:32px;align-items:center;justify-content:center;border-radius:12px;background:${currentProfile.color};box-shadow:0 10px 22px ${currentProfile.color}55;font-size:13px;font-weight:800;">${currentProfile.initial}</span>
+    <span class="profile-switcher-details" style="display:flex;min-width:0;flex:1;flex-direction:column;gap:4px;text-align:left;">
       <span style="display:flex;align-items:center;gap:6px;font-size:13px;color:#fff;white-space:nowrap;">
         <span>${currentProfile.label}</span>
         <span style="color:#94a3b8;font-size:10px;">⌄</span>
@@ -248,9 +259,124 @@ function createProfileSwitcher(profileBasePath) {
       var defaultProfiles = ${JSON.stringify(defaultProfiles)};
       var currentBase = '${profileBasePath}';
       var button = document.getElementById('profile-switcher-button');
+      var root = document.getElementById('profile-switcher-root');
       var homeButton = document.getElementById('profile-home-button');
       var menu = document.getElementById('profile-switcher-menu');
       var addButton = document.getElementById('profile-add-button');
+      var dockPositionKey = 'novonex_profile_dock_position';
+      var suppressClick = false;
+
+      function isMobileDock() {
+        return window.matchMedia && window.matchMedia('(max-width: 640px)').matches;
+      }
+
+      function clampDockPosition(left, top) {
+        if (!root) return { left: left, top: top };
+        var margin = 8;
+        var maxLeft = Math.max(margin, window.innerWidth - root.offsetWidth - margin);
+        var maxTop = Math.max(margin, window.innerHeight - root.offsetHeight - margin);
+        return {
+          left: Math.min(Math.max(left, margin), maxLeft),
+          top: Math.min(Math.max(top, margin), maxTop),
+        };
+      }
+
+      function applyDockPosition(position) {
+        if (!root || !isMobileDock() || !position) return;
+        var clamped = clampDockPosition(Number(position.left), Number(position.top));
+        if (!Number.isFinite(clamped.left) || !Number.isFinite(clamped.top)) return;
+        root.classList.add('profile-dock-positioned');
+        root.style.left = clamped.left + 'px';
+        root.style.top = clamped.top + 'px';
+        root.style.right = 'auto';
+        root.style.bottom = 'auto';
+      }
+
+      function loadDockPosition() {
+        if (!isMobileDock()) return;
+        try {
+          var stored = JSON.parse(window.localStorage.getItem(dockPositionKey) || 'null');
+          applyDockPosition(stored);
+        } catch (error) {}
+      }
+
+      function saveDockPosition() {
+        if (!root || !isMobileDock()) return;
+        var rect = root.getBoundingClientRect();
+        try {
+          window.localStorage.setItem(dockPositionKey, JSON.stringify({ left: rect.left, top: rect.top }));
+        } catch (error) {}
+      }
+
+      function positionMobileMenu() {
+        if (!root || !menu || !isMobileDock() || menu.style.display === 'none') return;
+        menu.style.visibility = 'hidden';
+        menu.style.display = 'block';
+        var rootRect = root.getBoundingClientRect();
+        var menuRect = menu.getBoundingClientRect();
+        var margin = 8;
+        var left = Math.min(Math.max(rootRect.left, margin), window.innerWidth - menuRect.width - margin);
+        var top = rootRect.top - menuRect.height - 10;
+        if (top < margin) top = rootRect.bottom + 10;
+        if (top + menuRect.height > window.innerHeight - margin) {
+          top = Math.max(margin, window.innerHeight - menuRect.height - margin);
+        }
+        menu.style.left = left + 'px';
+        menu.style.top = top + 'px';
+        menu.style.visibility = 'visible';
+      }
+
+      function toggleMenu() {
+        if (!menu) return;
+        var isOpen = menu.style.display !== 'none' && menu.style.display !== '';
+        if (isOpen) {
+          menu.style.display = 'none';
+          menu.style.visibility = '';
+          return;
+        }
+        menu.style.display = 'block';
+        if (isMobileDock()) positionMobileMenu();
+      }
+
+      function setupMobileDrag() {
+        if (!root || !button) return;
+        var drag = null;
+        button.addEventListener('pointerdown', function (event) {
+          if (!isMobileDock() || event.button === 2) return;
+          var rect = root.getBoundingClientRect();
+          drag = {
+            startX: event.clientX,
+            startY: event.clientY,
+            originLeft: rect.left,
+            originTop: rect.top,
+            moved: false,
+          };
+          button.setPointerCapture(event.pointerId);
+        });
+        button.addEventListener('pointermove', function (event) {
+          if (!drag || !isMobileDock()) return;
+          var deltaX = event.clientX - drag.startX;
+          var deltaY = event.clientY - drag.startY;
+          if (!drag.moved && Math.hypot(deltaX, deltaY) < 5) return;
+          drag.moved = true;
+          var position = clampDockPosition(drag.originLeft + deltaX, drag.originTop + deltaY);
+          root.classList.add('profile-dock-positioned');
+          root.style.left = position.left + 'px';
+          root.style.top = position.top + 'px';
+          root.style.right = 'auto';
+          root.style.bottom = 'auto';
+          if (menu && menu.style.display !== 'none') positionMobileMenu();
+          event.preventDefault();
+        });
+        function finishDrag() {
+          if (!drag) return;
+          suppressClick = drag.moved;
+          if (drag.moved) saveDockPosition();
+          drag = null;
+        }
+        button.addEventListener('pointerup', finishDrag);
+        button.addEventListener('pointercancel', finishDrag);
+      }
       function getStoredProfiles() {
         try {
           return JSON.parse(window.localStorage.getItem('novonex_profiles') || '[]');
@@ -320,6 +446,23 @@ function createProfileSwitcher(profileBasePath) {
       }
       if (!button) return;
       renderProfiles();
+      loadDockPosition();
+      setupMobileDrag();
+      window.addEventListener('resize', function () {
+        if (!isMobileDock()) {
+          root.classList.remove('profile-dock-positioned');
+          root.style.left = '';
+          root.style.top = '';
+          root.style.right = '';
+          root.style.bottom = '';
+          if (menu) menu.style.display = 'none';
+          return;
+        }
+        if (root.classList.contains('profile-dock-positioned')) {
+          applyDockPosition({ left: root.getBoundingClientRect().left, top: root.getBoundingClientRect().top });
+        }
+        positionMobileMenu();
+      });
       button.addEventListener('mouseenter', function () {
         button.style.transform = 'translateY(-1px)';
         button.style.background = 'rgba(255,255,255,.13)';
@@ -331,8 +474,11 @@ function createProfileSwitcher(profileBasePath) {
         button.style.borderColor = 'rgba(255,255,255,.06)';
       });
       button.addEventListener('click', function () {
-        if (!menu) return;
-        menu.style.display = menu.style.display === 'none' || !menu.style.display ? 'block' : 'none';
+        if (suppressClick) {
+          suppressClick = false;
+          return;
+        }
+        toggleMenu();
       });
       if (addButton) {
         addButton.addEventListener('click', function () {
