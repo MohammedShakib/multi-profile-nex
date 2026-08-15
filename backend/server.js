@@ -367,11 +367,11 @@ function rewriteTextResponse(body, profileBasePath, contentType = '') {
       (_match, attribute, quote) => `${attribute}=${quote}${profileBasePath}/`,
     )
     .replace(
-      /(["'`])\/(?!\/|proxy\/|#)/g,
+      /(["'`])\/(?!\/|proxy\/|#|>)/g,
       (_match, quote) => `${quote}${profileBasePath}/`,
     )
     .replace(
-      /(["'`])\\\/(?!\\\/|proxy\\\/|#)/g,
+      /(["'`])\\\/(?!\\\/|proxy\\\/|#|>)/g,
       (_match, quote) => `${quote}${escapedProfilePath}\\/`,
     )
     .replace(
