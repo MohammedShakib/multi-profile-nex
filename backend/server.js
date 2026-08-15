@@ -162,6 +162,7 @@ function rewriteTextResponse(body, profileBasePath) {
   const escapedProfilePath = profileBasePath.replace(/\//g, '\\/');
 
   return body
+    .replace(/<base\b[^>]*>/gi, '')
     .replaceAll(`${TARGET_ORIGIN}/`, `${profileBasePath}/`)
     .replaceAll(TARGET_ORIGIN, profileBasePath)
     .replaceAll(`${escapedTarget}\\/`, `${escapedProfilePath}\\/`)
@@ -187,19 +188,35 @@ function rewriteTextResponse(body, profileBasePath) {
 function shouldRewriteResponseBody(proxyRes) {
   const contentType = proxyRes.headers['content-type'] || '';
 
-  return /(text\/html|text\/css)/i.test(contentType);
+  return /(text\/html|text\/css|application\/javascript|text\/javascript|application\/json|text\/json)/i.test(
+    contentType,
+  );
 }
 
 function shouldInterceptRequest(req) {
   const acceptHeader = req.headers.accept || '';
   const requestPath = req.path || '/';
   const extension = path.extname(requestPath).toLowerCase();
+  const originalUrl = req.originalUrl || '';
 
-  if (acceptHeader.includes('text/html')) {
+  if (
+    acceptHeader.includes('text/html') ||
+    acceptHeader.includes('application/json') ||
+    acceptHeader.includes('text/javascript') ||
+    acceptHeader.includes('application/javascript')
+  ) {
     return true;
   }
 
-  return extension === '.html' || extension === '.htm' || extension === '.css';
+  if (
+    originalUrl.includes('/wp-admin/admin-ajax.php') ||
+    originalUrl.includes('/wp-json/') ||
+    originalUrl.includes('wc-ajax=')
+  ) {
+    return true;
+  }
+
+  return ['.html', '.htm', '.css', '.js', '.mjs', '.json'].includes(extension);
 }
 
 function handleProxyError(profileName, error, req, res) {
