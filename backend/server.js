@@ -456,6 +456,20 @@ function createProxyRedirectSanitizer(profileBasePath) {
         return value;
       }
       try {
+        var NativeURL = window.URL;
+        if (NativeURL && window.Proxy && !window.__novonexURLPatch) {
+          window.URL = new window.Proxy(NativeURL, {
+            construct: function (target, args) {
+              if (typeof args[0] === 'string') {
+                args[0] = args[0]
+                  .replace(/^https?:\/\/proxy\//i, window.location.origin + '/proxy/')
+                  .replace(/^https?:\/proxy\//i, window.location.origin + '/proxy/');
+              }
+              return Reflect.construct(target, args);
+            },
+          });
+          window.__novonexURLPatch = true;
+        }
         var originalAssign = window.location.assign.bind(window.location);
         var originalReplace = window.location.replace.bind(window.location);
         window.location.assign = function (url) {
