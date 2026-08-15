@@ -18,7 +18,7 @@ const TARGET_URL = `${TARGET_ORIGIN}/`;
 // Configure the frontend origins that are allowed to call this backend.
 // Example: CORS_ORIGINS="http://localhost:5173,https://app.example.com"
 const allowedOrigins = (process.env.CORS_ORIGINS ||
-  'http://localhost:5173,http://127.0.0.1:5173')
+  'http://localhost:5173,http://127.0.0.1:5173,https://multi-profile-nex.onrender.com')
   .split(',')
   .map((origin) => origin.trim())
   .filter(Boolean);
