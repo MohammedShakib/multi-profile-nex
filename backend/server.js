@@ -141,13 +141,60 @@ function rewriteTextResponse(body, profileBasePath) {
 function shouldRewriteResponseBody(proxyRes) {
   const contentType = proxyRes.headers['content-type'] || '';
 
-  return /(text\/html|text\/css|application\/javascript|text\/javascript|application\/json)/i.test(
-    contentType,
-  );
+  return /(text\/html|text\/css)/i.test(contentType);
 }
 
-function createProfileProxy(profileName) {
+function shouldInterceptRequest(req) {
+  const acceptHeader = req.headers.accept || '';
+  const requestPath = req.path || '/';
+  const extension = path.extname(requestPath).toLowerCase();
+
+  if (acceptHeader.includes('text/html')) {
+    return true;
+  }
+
+  return extension === '.html' || extension === '.htm' || extension === '.css';
+}
+
+function handleProxyError(profileName, error, req, res) {
+  console.error(
+    `[proxy:${profileName}] ${req.method} ${req.originalUrl} failed:`,
+    error,
+  );
+
+  if (!res.headersSent) {
+    res.status(502).json({
+      error: 'Bad gateway',
+      profile: profileName,
+      message: 'Unable to reach the course website through the proxy.',
+    });
+  }
+}
+
+function createProfileProxyOptions(profileName, profileBasePath) {
+  return {
+    target: TARGET_URL,
+    changeOrigin: true,
+    xfwd: true,
+    ws: true,
+    secure: true,
+    on: {
+      proxyRes(proxyRes) {
+        rewriteSetCookieHeader(proxyRes, profileBasePath);
+        rewriteLocationHeader(proxyRes, profileBasePath);
+      },
+      error(error, req, res) {
+        handleProxyError(profileName, error, req, res);
+      },
+    },
+  };
+}
+
+function createProfileProxyRouter(profileName) {
   const profileBasePath = `/proxy/${profileName}`;
+  const streamProxy = createProxyMiddleware(
+    createProfileProxyOptions(profileName, profileBasePath),
+  );
   const interceptResponseBody = responseInterceptor(async (responseBuffer, proxyRes) => {
     if (!shouldRewriteResponseBody(proxyRes)) {
       return responseBuffer;
@@ -155,15 +202,11 @@ function createProfileProxy(profileName) {
 
     return rewriteTextResponse(responseBuffer.toString('utf8'), profileBasePath);
   });
-
-  return createProxyMiddleware({
-    target: TARGET_URL,
-    changeOrigin: true,
-    xfwd: true,
-    ws: true,
-    secure: true,
+  const rewriteProxy = createProxyMiddleware({
+    ...createProfileProxyOptions(profileName, profileBasePath),
     selfHandleResponse: true,
     on: {
+      ...createProfileProxyOptions(profileName, profileBasePath).on,
       proxyReq(proxyReq) {
         // Keep upstream compression negotiable; responseInterceptor can decode
         // common encodings and will update response headers before sending.
@@ -178,26 +221,21 @@ function createProfileProxy(profileName) {
 
         return interceptResponseBody(proxyRes, req, res);
       },
-      error(error, req, res) {
-        console.error(
-          `[proxy:${profileName}] ${req.method} ${req.originalUrl} failed:`,
-          error,
-        );
-
-        if (!res.headersSent) {
-          res.status(502).json({
-            error: 'Bad gateway',
-            profile: profileName,
-            message: 'Unable to reach the course website through the proxy.',
-          });
-        }
-      },
     },
   });
+
+  return (req, res, next) => {
+    if (shouldInterceptRequest(req)) {
+      rewriteProxy(req, res, next);
+      return;
+    }
+
+    streamProxy(req, res, next);
+  };
 }
 
-app.use('/proxy/p1', createProfileProxy('p1'));
-app.use('/proxy/p2', createProfileProxy('p2'));
+app.use('/proxy/p1', createProfileProxyRouter('p1'));
+app.use('/proxy/p2', createProfileProxyRouter('p2'));
 
 app.use(express.static(distPath));
 
