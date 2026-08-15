@@ -796,7 +796,7 @@ function createProfileProxyRouter(profileName) {
   const streamProxy = createProxyMiddleware(
     createProfileProxyOptions(profileName, profileBasePath),
   );
-  const interceptResponseBody = responseInterceptor(async (responseBuffer, proxyRes) => {
+  const interceptResponseBody = responseInterceptor(async (responseBuffer, proxyRes, req) => {
     if (!shouldRewriteResponseBody(proxyRes)) {
       return responseBuffer;
     }
