@@ -1,17 +1,19 @@
 import express from 'express';
 import cors from 'cors';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import {
   createProxyMiddleware,
   responseInterceptor,
 } from 'http-proxy-middleware';
 
 const app = express();
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const distPath = path.join(__dirname, 'dist');
 
 const PORT = Number(process.env.PORT || 3001);
 const TARGET_ORIGIN = 'https://nexcourses.com';
 const TARGET_URL = `${TARGET_ORIGIN}/`;
-const NEXCOURSES_LOGO_URL =
-  'https://nexcourses.com/wp-content/uploads/2026/01/cropped-logo.png';
 
 // Configure the frontend origins that are allowed to call this backend.
 // Example: CORS_ORIGINS="http://localhost:5173,https://app.example.com"
@@ -45,85 +47,6 @@ app.get('/health', (_req, res) => {
     target: TARGET_URL,
     profiles: ['/proxy/p1', '/proxy/p2'],
   });
-});
-
-// Small mobile-friendly entry page for manual testing. Your React frontend can
-// link directly to /proxy/p1/ and /proxy/p2/ instead.
-app.get('/', (_req, res) => {
-  res.type('html').send(`<!doctype html>
-<html lang="en">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>NovoNex Profile Proxy</title>
-    <style>
-      :root {
-        color-scheme: light;
-        font-family: Arial, Helvetica, sans-serif;
-      }
-
-      body {
-        margin: 0;
-        min-height: 100vh;
-        display: grid;
-        place-items: center;
-        background: #f5f7fb;
-        color: #172033;
-      }
-
-      main {
-        width: min(92vw, 420px);
-        padding: 28px;
-        background: #ffffff;
-        border: 1px solid #dce3ee;
-        border-radius: 8px;
-        box-shadow: 0 18px 50px rgba(23, 32, 51, 0.12);
-      }
-
-      img {
-        display: block;
-        width: min(260px, 100%);
-        height: auto;
-        margin: 0 auto 26px;
-      }
-
-      h1 {
-        margin: 0 0 8px;
-        font-size: 24px;
-        line-height: 1.2;
-      }
-
-      p {
-        margin: 0 0 22px;
-        color: #526174;
-        line-height: 1.5;
-      }
-
-      a {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        min-height: 48px;
-        margin-top: 12px;
-        padding: 0 16px;
-        border-radius: 6px;
-        background: #172033;
-        color: #ffffff;
-        text-decoration: none;
-        font-weight: 700;
-      }
-    </style>
-  </head>
-  <body>
-    <main>
-      <img src="${NEXCOURSES_LOGO_URL}" alt="NovoNex" />
-      <h1>Choose a Profile</h1>
-      <p>Each route keeps its target-site cookies scoped to that profile path.</p>
-      <a href="/proxy/p1/">Profile 1 <span>/proxy/p1</span></a>
-      <a href="/proxy/p2/">Profile 2 <span>/proxy/p2</span></a>
-    </main>
-  </body>
-</html>`);
 });
 
 function rewriteSetCookieHeader(proxyRes, profileBasePath) {
@@ -275,6 +198,17 @@ function createProfileProxy(profileName) {
 
 app.use('/proxy/p1', createProfileProxy('p1'));
 app.use('/proxy/p2', createProfileProxy('p2'));
+
+app.use(express.static(distPath));
+
+app.use((req, res, next) => {
+  if (req.method !== 'GET' || !req.accepts('html')) {
+    next();
+    return;
+  }
+
+  res.sendFile(path.join(distPath, 'index.html'));
+});
 
 app.use((err, _req, res, _next) => {
   if (res.headersSent) {
