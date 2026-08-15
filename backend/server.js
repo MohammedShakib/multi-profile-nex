@@ -222,7 +222,7 @@ function createProfileSwitcher(profileBasePath) {
     #profile-switcher-root.profile-switcher-dock { position:fixed;right:18px;bottom:18px;z-index:2147483647;display:flex;align-items:center;gap:8px;max-width:min(92vw,360px);min-height:58px;border:1px solid rgba(148,163,184,.3);background:linear-gradient(135deg,rgba(15,23,42,.9),rgba(30,41,59,.86));border-radius:20px;box-shadow:0 18px 48px rgba(0,0,0,.34),inset 0 1px 0 rgba(255,255,255,.08);padding:8px;font-family:Inter,Arial,Helvetica,sans-serif;backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px); }
     #profile-switcher-root.profile-switcher-dock.profile-dock-positioned { right:auto;bottom:auto; }
     #profile-switcher-root #profile-switcher-button { touch-action:none; }
-    @media (max-width:640px) {
+    @media (max-width:900px), (hover:none), (pointer:coarse) {
       #profile-switcher-root.profile-switcher-dock { width:58px; height:58px;min-width:58px;max-width:58px;min-height:58px;padding:4px;border-radius:20px; }
       #profile-switcher-root #profile-switcher-button { width:48px !important;height:48px !important;min-width:48px !important;max-width:48px !important;min-height:48px !important;padding:3px !important;justify-content:center;border-radius:16px; }
       #profile-switcher-root #profile-switcher-button .profile-switcher-avatar { width:42px !important;height:42px !important;min-width:42px !important;border-radius:14px;font-size:14px; }
@@ -268,7 +268,7 @@ function createProfileSwitcher(profileBasePath) {
       var suppressClick = false;
 
       function isMobileDock() {
-        return window.matchMedia && window.matchMedia('(max-width: 640px)').matches;
+        return window.matchMedia && window.matchMedia('(max-width: 900px), (hover: none), (pointer: coarse)').matches;
       }
 
       function clampDockPosition(left, top) {
@@ -283,7 +283,7 @@ function createProfileSwitcher(profileBasePath) {
       }
 
       function applyDockPosition(position) {
-        if (!root || !isMobileDock() || !position) return;
+        if (!root || !position) return;
         var clamped = clampDockPosition(Number(position.left), Number(position.top));
         if (!Number.isFinite(clamped.left) || !Number.isFinite(clamped.top)) return;
         root.classList.add('profile-dock-positioned');
@@ -294,7 +294,6 @@ function createProfileSwitcher(profileBasePath) {
       }
 
       function loadDockPosition() {
-        if (!isMobileDock()) return;
         try {
           var stored = JSON.parse(window.localStorage.getItem(dockPositionKey) || 'null');
           applyDockPosition(stored);
@@ -302,7 +301,7 @@ function createProfileSwitcher(profileBasePath) {
       }
 
       function saveDockPosition() {
-        if (!root || !isMobileDock()) return;
+        if (!root) return;
         var rect = root.getBoundingClientRect();
         try {
           window.localStorage.setItem(dockPositionKey, JSON.stringify({ left: rect.left, top: rect.top }));
@@ -343,7 +342,7 @@ function createProfileSwitcher(profileBasePath) {
         if (!root || !button) return;
         var drag = null;
         button.addEventListener('pointerdown', function (event) {
-          if (!isMobileDock() || event.button === 2) return;
+          if (event.button === 2) return;
           var rect = root.getBoundingClientRect();
           drag = {
             startX: event.clientX,
@@ -355,7 +354,7 @@ function createProfileSwitcher(profileBasePath) {
           button.setPointerCapture(event.pointerId);
         });
         button.addEventListener('pointermove', function (event) {
-          if (!drag || !isMobileDock()) return;
+          if (!drag) return;
           var deltaX = event.clientX - drag.startX;
           var deltaY = event.clientY - drag.startY;
           if (!drag.moved && Math.hypot(deltaX, deltaY) < 5) return;
@@ -450,15 +449,6 @@ function createProfileSwitcher(profileBasePath) {
       loadDockPosition();
       setupMobileDrag();
       window.addEventListener('resize', function () {
-        if (!isMobileDock()) {
-          root.classList.remove('profile-dock-positioned');
-          root.style.left = '';
-          root.style.top = '';
-          root.style.right = '';
-          root.style.bottom = '';
-          if (menu) menu.style.display = 'none';
-          return;
-        }
         if (root.classList.contains('profile-dock-positioned')) {
           applyDockPosition({ left: root.getBoundingClientRect().left, top: root.getBoundingClientRect().top });
         }
@@ -757,6 +747,10 @@ function shouldInterceptRequest(req) {
   const requestPath = req.path || '/';
   const extension = path.extname(requestPath).toLowerCase();
   const originalUrl = req.originalUrl || '';
+
+  if ((req.method === 'GET' || req.method === 'HEAD') && !extension) {
+    return true;
+  }
 
   if (
     acceptHeader.includes('text/html') ||
