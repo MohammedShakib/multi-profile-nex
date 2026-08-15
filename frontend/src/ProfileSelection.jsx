@@ -1,12 +1,9 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
-  ArrowRight,
-  CheckCircle2,
+  ChevronRight,
   Loader2,
-  Mail,
   Plus,
   ShieldCheck,
-  UserRound,
   X,
 } from 'lucide-react';
 
@@ -23,6 +20,7 @@ const defaultProfiles = [
     proxyPath: '/proxy/p1/dashboard/',
     accent: 'indigo',
     color: '#6366f1',
+    description: 'Personal learning space',
   },
   {
     id: 'profile_2',
@@ -33,6 +31,7 @@ const defaultProfiles = [
     proxyPath: '/proxy/p2/dashboard/',
     accent: 'emerald',
     color: '#10b981',
+    description: 'Shared workspace',
   },
 ];
 
@@ -40,33 +39,43 @@ const customAccents = ['sky', 'rose', 'amber'];
 
 const accentStyles = {
   amber: {
-    active: 'border-amber-400 bg-amber-500/15 shadow-amber-950/30',
-    icon: 'bg-amber-500 text-white',
-    hover: 'hover:border-amber-300 hover:bg-amber-500/10',
+    avatar: 'bg-amber-500 text-white shadow-amber-500/25',
+    border: 'hover:border-amber-300/55',
+    dot: 'bg-amber-300',
+    focus: 'focus-visible:outline-amber-300',
+    glow: 'group-hover:shadow-amber-500/10',
     text: 'text-amber-200',
   },
   emerald: {
-    active: 'border-emerald-400 bg-emerald-500/15 shadow-emerald-950/30',
-    icon: 'bg-emerald-500 text-white',
-    hover: 'hover:border-emerald-300 hover:bg-emerald-500/10',
+    avatar: 'bg-emerald-500 text-white shadow-emerald-500/25',
+    border: 'hover:border-emerald-300/55',
+    dot: 'bg-emerald-300',
+    focus: 'focus-visible:outline-emerald-300',
+    glow: 'group-hover:shadow-emerald-500/10',
     text: 'text-emerald-200',
   },
   indigo: {
-    active: 'border-indigo-400 bg-indigo-500/15 shadow-indigo-950/30',
-    icon: 'bg-indigo-500 text-white',
-    hover: 'hover:border-indigo-300 hover:bg-indigo-500/10',
+    avatar: 'bg-indigo-500 text-white shadow-indigo-500/25',
+    border: 'hover:border-indigo-300/55',
+    dot: 'bg-indigo-300',
+    focus: 'focus-visible:outline-indigo-300',
+    glow: 'group-hover:shadow-indigo-500/10',
     text: 'text-indigo-200',
   },
   rose: {
-    active: 'border-rose-400 bg-rose-500/15 shadow-rose-950/30',
-    icon: 'bg-rose-500 text-white',
-    hover: 'hover:border-rose-300 hover:bg-rose-500/10',
+    avatar: 'bg-rose-500 text-white shadow-rose-500/25',
+    border: 'hover:border-rose-300/55',
+    dot: 'bg-rose-300',
+    focus: 'focus-visible:outline-rose-300',
+    glow: 'group-hover:shadow-rose-500/10',
     text: 'text-rose-200',
   },
   sky: {
-    active: 'border-sky-400 bg-sky-500/15 shadow-sky-950/30',
-    icon: 'bg-sky-500 text-white',
-    hover: 'hover:border-sky-300 hover:bg-sky-500/10',
+    avatar: 'bg-sky-500 text-white shadow-sky-500/25',
+    border: 'hover:border-sky-300/55',
+    dot: 'bg-sky-300',
+    focus: 'focus-visible:outline-sky-300',
+    glow: 'group-hover:shadow-sky-500/10',
     text: 'text-sky-200',
   },
 };
@@ -88,6 +97,25 @@ function getNextProxyNumber(profiles) {
     const match = profile.basePath?.match(/\/proxy\/p(\d+)$/);
     return match ? Math.max(max, Number(match[1])) : max;
   }, 2) + 1;
+}
+
+function getInitials(profile) {
+  if (profile.id === 'profile_1') {
+    return 'AR';
+  }
+
+  const source = profile.label || profile.title || profile.email || 'P';
+  const words = source
+    .replace(/profile/gi, '')
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean);
+
+  if (words.length >= 2) {
+    return `${words[0][0]}${words[1][0]}`.toUpperCase();
+  }
+
+  return source.slice(0, 2).toUpperCase();
 }
 
 const ProfileSelection = () => {
@@ -142,7 +170,7 @@ const ProfileSelection = () => {
 
     navigationTimeoutRef.current = window.setTimeout(() => {
       window.location.assign(`${PROXY_BASE_URL}${profile.proxyPath}`);
-    }, 220);
+    }, 180);
   };
 
   const handleAddProfile = (event) => {
@@ -167,6 +195,7 @@ const ProfileSelection = () => {
       proxyPath: `${basePath}/dashboard/`,
       accent,
       color: accent === 'sky' ? '#0ea5e9' : accent === 'rose' ? '#f43f5e' : '#f59e0b',
+      description: 'Isolated learning profile',
     };
     const nextStoredProfiles = [...storedProfiles, profile];
 
@@ -179,150 +208,145 @@ const ProfileSelection = () => {
   };
 
   return (
-    <main className="min-h-screen w-full bg-[#111827] px-4 py-8 text-white sm:px-6">
-      <section className="mx-auto flex min-h-[calc(100vh-4rem)] w-full max-w-[520px] flex-col items-center justify-center">
-        <div className="mb-8 w-full text-center">
-          <div className="mx-auto mb-6 w-full max-w-[260px] rounded-lg bg-white px-6 py-4 shadow-2xl shadow-black/25">
-            <img src="/novonex-logo.png" alt="NovoNex" className="h-auto w-full" />
+    <main className="relative min-h-screen w-full overflow-hidden bg-[#080d17] px-4 py-8 text-white sm:px-6">
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_8%,rgba(46,93,167,0.24),transparent_38%),linear-gradient(180deg,rgba(18,26,42,0.92)_0%,rgba(8,13,23,1)_62%)]" />
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/20 to-transparent" />
+
+      <section className="relative z-10 mx-auto flex min-h-[calc(100vh-4rem)] w-full max-w-[560px] flex-col items-center justify-center">
+        <div className="w-full rounded-[24px] border border-white/[0.08] bg-[#141c2b]/80 px-5 py-7 shadow-[0_24px_70px_rgba(0,0,0,0.34)] backdrop-blur-xl sm:px-8 sm:py-9">
+          <div className="text-center">
+            <div className="mx-auto mb-7 flex justify-center drop-shadow-[0_18px_34px_rgba(244,63,94,0.18)]">
+              <img src="/novonex-logo.png" alt="NovoNex" className="h-auto w-[220px] max-w-full" />
+            </div>
+
+            <h1 className="text-[30px] font-semibold leading-tight text-white sm:text-[32px]">
+              Welcome back
+            </h1>
+            <p className="mt-2 text-sm font-medium text-slate-300">
+              Choose a profile to continue
+            </p>
           </div>
 
-          <h1 className="text-[28px] font-bold leading-tight text-white sm:text-[32px]">
-            Welcome Back
-          </h1>
-          <p className="mt-2 text-sm font-medium text-slate-300">
-            Select a saved profile to continue
-          </p>
-        </div>
+          <div className="mt-8 space-y-3">
+            {profiles.map((profile) => {
+              const isLoading = loadingProfile === profile.id;
+              const isDisabled = loadingProfile !== null && !isLoading;
+              const styles = accentStyles[profile.accent] || accentStyles.indigo;
 
-        <div className="w-full space-y-3">
-          {profiles.map((profile) => {
-            const isLoading = loadingProfile === profile.id;
-            const isDisabled = loadingProfile !== null && !isLoading;
-            const styles = accentStyles[profile.accent] || accentStyles.indigo;
-
-            return (
-              <button
-                key={profile.id}
-                type="button"
-                onClick={() => handleProfileSelect(profile)}
-                disabled={loadingProfile !== null}
-                aria-busy={isLoading}
-                className={`grid min-h-[92px] w-full grid-cols-[56px_minmax(0,1fr)_36px] items-center gap-4 rounded-lg border p-4 text-left shadow-lg transition duration-200 ease-out active:scale-[0.99] sm:min-h-[98px] sm:p-5
-                  ${
-                    isLoading
-                      ? styles.active
-                      : `border-white/10 bg-white/[0.055] hover:shadow-xl ${styles.hover}`
-                  }
-                  ${isDisabled ? 'opacity-45 grayscale' : ''}
-                `}
-              >
-                <span
-                  className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-lg transition-colors ${
-                    isLoading ? styles.icon : 'bg-white/8 text-slate-200'
-                  }`}
+              return (
+                <button
+                  key={profile.id}
+                  type="button"
+                  onClick={() => handleProfileSelect(profile)}
+                  disabled={loadingProfile !== null}
+                  aria-busy={isLoading}
+                  className={`group grid min-h-[84px] w-full grid-cols-[48px_minmax(0,1fr)_24px] items-center gap-4 rounded-2xl border border-white/[0.09] bg-white/[0.045] px-4 py-4 text-left shadow-lg shadow-black/10 outline-none transition duration-200 ease-out hover:-translate-y-0.5 hover:bg-white/[0.07] hover:shadow-2xl active:translate-y-0 active:scale-[0.99] sm:min-h-[88px] sm:grid-cols-[52px_minmax(0,1fr)_28px] sm:px-5 ${styles.border} ${styles.glow} ${styles.focus} ${isDisabled ? 'opacity-45 grayscale' : ''}`}
                 >
-                  {isLoading ? (
-                    <Loader2 className="h-6 w-6 animate-spin" strokeWidth={2.2} />
-                  ) : (
-                    <UserRound className="h-6 w-6" strokeWidth={1.8} />
-                  )}
-                </span>
-
-                <span className="min-w-0">
-                  <span className="mb-1 flex items-center gap-2">
-                    <span className="truncate text-base font-semibold text-white sm:text-lg">
-                      {profile.title}
-                    </span>
+                  <span
+                    className={`relative flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl text-sm font-bold shadow-lg transition sm:h-13 sm:w-13 ${
+                      isLoading ? 'bg-slate-700 text-white' : styles.avatar
+                    }`}
+                  >
+                    {isLoading ? (
+                      <Loader2 className="h-5 w-5 animate-spin" strokeWidth={2.2} />
+                    ) : (
+                      getInitials(profile)
+                    )}
                     {!isLoading && (
-                      <CheckCircle2 className={`h-4 w-4 shrink-0 ${styles.text}`} strokeWidth={2.1} />
+                      <span
+                        className={`absolute -right-0.5 -top-0.5 h-3 w-3 rounded-full border-2 border-[#141c2b] ${styles.dot}`}
+                      />
                     )}
                   </span>
 
-                  <span className="flex min-w-0 items-center gap-2 text-sm text-slate-300">
-                    <Mail className="h-4 w-4 shrink-0 text-slate-400" strokeWidth={1.8} />
-                    <span className="truncate">{profile.email}</span>
+                  <span className="min-w-0">
+                    <span className="flex min-w-0 items-center gap-2">
+                      <span className="truncate text-base font-semibold text-white sm:text-lg">
+                        {profile.title}
+                      </span>
+                    </span>
+
+                    <span className="mt-1 block truncate text-sm font-medium text-slate-300">
+                      {profile.email}
+                    </span>
+                    <span className={`mt-2 block text-xs font-semibold ${styles.text}`}>
+                      {profile.description || `${profile.label} profile`}
+                    </span>
                   </span>
-                </span>
 
-                <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-white/8 text-slate-100 transition">
-                  {isLoading ? (
-                    <ShieldCheck className="h-5 w-5" strokeWidth={2} />
-                  ) : (
-                    <ArrowRight className="h-5 w-5" strokeWidth={2} />
-                  )}
-                </span>
-              </button>
-            );
-          })}
+                  <span className="flex justify-end text-slate-300 transition duration-200 group-hover:translate-x-1 group-hover:text-white">
+                    <ChevronRight className="h-6 w-6" strokeWidth={2.1} />
+                  </span>
+                </button>
+              );
+            })}
 
-          <button
-            type="button"
-            onClick={() => setIsAddOpen(true)}
-            className="grid min-h-[78px] w-full grid-cols-[56px_minmax(0,1fr)] items-center gap-4 rounded-lg border border-dashed border-white/15 bg-white/[0.035] p-4 text-left transition hover:border-white/25 hover:bg-white/[0.06]"
-          >
-            <span className="flex h-14 w-14 items-center justify-center rounded-lg bg-white/8 text-slate-200">
-              <Plus className="h-6 w-6" strokeWidth={2} />
-            </span>
-            <span>
-              <span className="block text-base font-semibold text-white">Add Profile</span>
-              <span className="mt-1 block text-sm text-slate-400">Create another isolated login</span>
-            </span>
-          </button>
-        </div>
+            <button
+              type="button"
+              onClick={() => setIsAddOpen(true)}
+              className="mx-auto mt-5 flex h-11 items-center justify-center gap-2 rounded-full border border-white/[0.08] bg-white/[0.045] px-5 text-sm font-semibold text-slate-200 outline-none transition hover:border-white/20 hover:bg-white/[0.075] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-300"
+            >
+              <Plus className="h-4 w-4" strokeWidth={2.2} />
+              Add profile
+            </button>
+          </div>
 
-        <div className="mt-8 flex items-center gap-2 text-xs font-medium text-slate-400">
-          <ShieldCheck className="h-4 w-4 text-slate-500" strokeWidth={1.8} />
-          <span>Secure profile connection</span>
+          <div className="mt-8 flex items-center justify-center gap-2 text-xs font-medium text-slate-400">
+            <ShieldCheck className="h-4 w-4 text-slate-500" strokeWidth={1.8} />
+            <span>Secure profile isolation</span>
+          </div>
         </div>
       </section>
 
       {isAddOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/65 px-4 backdrop-blur-sm">
           <form
             onSubmit={handleAddProfile}
-            className="w-full max-w-[420px] rounded-lg border border-white/10 bg-[#111827] p-5 shadow-2xl shadow-black/40"
+            className="w-full max-w-[430px] rounded-[22px] border border-white/[0.09] bg-[#141c2b] p-5 shadow-[0_24px_70px_rgba(0,0,0,0.45)] sm:p-6"
           >
-            <div className="mb-5 flex items-center justify-between">
+            <div className="mb-6 flex items-start justify-between gap-4">
               <div>
-                <h2 className="text-lg font-semibold text-white">Add Profile</h2>
-                <p className="mt-1 text-sm text-slate-400">A new proxy session will be created.</p>
+                <h2 className="text-xl font-semibold text-white">Add profile</h2>
+                <p className="mt-1 text-sm text-slate-400">
+                  Create another isolated login session.
+                </p>
               </div>
               <button
                 type="button"
                 onClick={() => setIsAddOpen(false)}
-                className="flex h-9 w-9 items-center justify-center rounded-lg bg-white/8 text-slate-200"
+                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white/[0.06] text-slate-200 transition hover:bg-white/[0.1]"
                 aria-label="Close"
               >
                 <X className="h-5 w-5" />
               </button>
             </div>
 
-            <label className="mb-3 block">
-              <span className="mb-1 block text-sm font-medium text-slate-300">Profile name</span>
+            <label className="mb-4 block">
+              <span className="mb-2 block text-sm font-semibold text-slate-300">Profile name</span>
               <input
                 value={newTitle}
                 onChange={(event) => setNewTitle(event.target.value)}
                 placeholder="Tanvir"
-                className="h-11 w-full rounded-lg border border-white/10 bg-white/5 px-3 text-sm text-white outline-none focus:border-sky-400"
+                className="h-12 w-full rounded-xl border border-white/[0.09] bg-white/[0.055] px-4 text-sm font-medium text-white outline-none transition placeholder:text-slate-500 focus:border-sky-300"
               />
             </label>
 
-            <label className="mb-5 block">
-              <span className="mb-1 block text-sm font-medium text-slate-300">Email</span>
+            <label className="mb-6 block">
+              <span className="mb-2 block text-sm font-semibold text-slate-300">Email</span>
               <input
                 type="email"
                 value={newEmail}
                 onChange={(event) => setNewEmail(event.target.value)}
                 placeholder="tanvir@email.com"
-                className="h-11 w-full rounded-lg border border-white/10 bg-white/5 px-3 text-sm text-white outline-none focus:border-sky-400"
+                className="h-12 w-full rounded-xl border border-white/[0.09] bg-white/[0.055] px-4 text-sm font-medium text-white outline-none transition placeholder:text-slate-500 focus:border-sky-300"
               />
             </label>
 
             <button
               type="submit"
-              className="flex h-11 w-full items-center justify-center rounded-lg bg-sky-500 text-sm font-semibold text-white transition hover:bg-sky-400"
+              className="flex h-12 w-full items-center justify-center rounded-xl bg-sky-500 text-sm font-semibold text-white shadow-lg shadow-sky-950/30 transition hover:bg-sky-400"
             >
-              Add and Open Dashboard
+              Add and open dashboard
             </button>
           </form>
         </div>
