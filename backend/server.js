@@ -40,7 +40,7 @@ const defaultProfiles = [
   {
     basePath: '/proxy/p1',
     label: 'Personal',
-    email: 'ayemshakib2018@gmail.com',
+    email: 'nayemshakib2018@gmail.com',
     initial: 'P',
     color: '#6366f1',
   },

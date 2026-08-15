@@ -15,7 +15,7 @@ const defaultProfiles = [
     id: 'profile_1',
     title: 'Personal Profile',
     label: 'Personal',
-    email: import.meta.env.VITE_PROFILE_1_EMAIL || 'ayemshakib2018@gmail.com',
+    email: import.meta.env.VITE_PROFILE_1_EMAIL || 'nayemshakib2018@gmail.com',
     basePath: '/proxy/p1',
     proxyPath: '/proxy/p1/dashboard/',
     accent: 'indigo',
