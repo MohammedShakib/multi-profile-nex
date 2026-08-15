@@ -1,4 +1,4 @@
-const CACHE_NAME = 'novonex-shell-v1';
+const CACHE_NAME = 'novonex-shell-v2';
 const APP_SHELL = [
   '/',
   '/favicon.svg',
@@ -7,6 +7,7 @@ const APP_SHELL = [
   '/apple-touch-icon.png',
   '/manifest.webmanifest',
   '/novonex-logo.png',
+  '/novonex-logo-light.png',
 ];
 
 self.addEventListener('install', (event) => {

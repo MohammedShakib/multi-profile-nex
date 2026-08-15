@@ -216,7 +216,7 @@ const ProfileSelection = () => {
         <div className="w-full rounded-[22px] border border-white/[0.08] bg-[#141c2b]/80 px-4 py-6 shadow-[0_24px_70px_rgba(0,0,0,0.34)] backdrop-blur-xl sm:rounded-[24px] sm:px-8 sm:py-9">
           <div className="text-center">
             <div className="mx-auto mb-6 flex justify-center drop-shadow-[0_18px_34px_rgba(244,63,94,0.18)] sm:mb-7">
-              <img src="/novonex-logo.png" alt="NovoNex" className="h-auto w-[185px] max-w-full sm:w-[220px]" />
+              <img src="/novonex-logo-light.png" alt="NovoNex" className="h-auto w-[185px] max-w-full sm:w-[220px]" />
             </div>
 
             <h1 className="text-[28px] font-semibold leading-tight text-white sm:text-[32px]">
