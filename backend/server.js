@@ -230,6 +230,7 @@ function createProfileSwitcher(profileBasePath) {
       #profile-switcher-root #profile-switcher-menu { position:fixed !important;right:auto !important;bottom:auto !important;width:min(86vw,292px); }
     }
   </style>
+  <div id="profile-switcher-root" class="profile-switcher-dock">
   <div id="profile-switcher-menu" style="position:absolute;right:0;bottom:72px;display:none;width:min(86vw,292px);border:1px solid rgba(148,163,184,.32);background:linear-gradient(135deg,rgba(15,23,42,.98),rgba(30,41,59,.96));border-radius:18px;box-shadow:0 24px 60px rgba(0,0,0,.42),inset 0 1px 0 rgba(255,255,255,.08);padding:8px;color:#fff;backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);">
     <button type="button" id="profile-home-button" title="Home" style="display:flex;width:100%;align-items:center;gap:10px;border:0;border-radius:12px;background:rgba(255,255,255,.07);color:#e2e8f0;cursor:pointer;padding:9px 10px;text-align:left;font-size:12px;font-weight:800;">
       <span style="display:inline-flex;height:28px;min-width:28px;align-items:center;justify-content:center;border-radius:10px;background:rgba(148,163,184,.16);font-size:14px;">⌂</span>
