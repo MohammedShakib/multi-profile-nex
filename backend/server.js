@@ -157,11 +157,40 @@ function prepareProxyResponse(proxyRes, req, profileBasePath) {
   }
 }
 
-function rewriteTextResponse(body, profileBasePath) {
+function createProfileSwitcher(profileBasePath) {
+  const isPersonal = profileBasePath.endsWith('/p1');
+  const currentLabel = isPersonal ? 'Personal' : 'Shared';
+  const targetLabel = isPersonal ? 'Shared' : 'Personal';
+  const targetBasePath = isPersonal ? '/proxy/p2' : '/proxy/p1';
+
+  return `<div id="profile-switcher-root" style="position:fixed;right:18px;bottom:18px;z-index:2147483647;font-family:Arial,Helvetica,sans-serif;">
+  <button type="button" id="profile-switcher-button" style="display:flex;align-items:center;gap:10px;border:1px solid rgba(255,255,255,.22);background:#111827;color:#fff;border-radius:999px;box-shadow:0 12px 35px rgba(0,0,0,.28);padding:10px 14px;cursor:pointer;font-size:13px;font-weight:700;line-height:1;">
+    <span style="display:inline-flex;height:22px;min-width:22px;align-items:center;justify-content:center;border-radius:999px;background:${isPersonal ? '#4f46e5' : '#059669'};font-size:11px;">${isPersonal ? 'P' : 'S'}</span>
+    <span>${currentLabel}</span>
+    <span style="opacity:.65;">Switch to ${targetLabel}</span>
+  </button>
+  <script>
+    (function () {
+      var button = document.getElementById('profile-switcher-button');
+      if (!button) return;
+      button.addEventListener('click', function () {
+        var targetBase = '${targetBasePath}';
+        var sourceBase = '${profileBasePath}';
+        var nextPath = window.location.pathname.indexOf(sourceBase) === 0
+          ? targetBase + window.location.pathname.slice(sourceBase.length)
+          : targetBase + '/dashboard/';
+        window.location.href = nextPath + window.location.search + window.location.hash;
+      });
+    })();
+  </script>
+</div>`;
+}
+
+function rewriteTextResponse(body, profileBasePath, contentType = '') {
   const escapedTarget = TARGET_ORIGIN.replace(/\//g, '\\/');
   const escapedProfilePath = profileBasePath.replace(/\//g, '\\/');
 
-  return body
+  const rewrittenBody = body
     .replace(/<base\b[^>]*>/gi, '')
     .replaceAll(`${TARGET_ORIGIN}/`, `${profileBasePath}/`)
     .replaceAll(TARGET_ORIGIN, profileBasePath)
@@ -183,6 +212,12 @@ function rewriteTextResponse(body, profileBasePath) {
       /\burl\((["']?)\/(?!\/|proxy\/|#)/gi,
       (_match, quote) => `url(${quote}${profileBasePath}/`,
     );
+
+  if (/text\/html/i.test(contentType) && /<\/body>/i.test(rewrittenBody)) {
+    return rewrittenBody.replace(/<\/body>/i, `${createProfileSwitcher(profileBasePath)}</body>`);
+  }
+
+  return rewrittenBody;
 }
 
 function shouldRewriteResponseBody(proxyRes) {
@@ -263,7 +298,11 @@ function createProfileProxyRouter(profileName) {
       return responseBuffer;
     }
 
-    return rewriteTextResponse(responseBuffer.toString('utf8'), profileBasePath);
+    return rewriteTextResponse(
+      responseBuffer.toString('utf8'),
+      profileBasePath,
+      proxyRes.headers['content-type'] || '',
+    );
   });
   const rewriteProxy = createProxyMiddleware({
     ...createProfileProxyOptions(profileName, profileBasePath),
