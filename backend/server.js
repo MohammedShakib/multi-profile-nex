@@ -192,6 +192,11 @@ function createProfileSwitcher(profileBasePath) {
 
   return `<div id="profile-switcher-root" style="position:fixed;right:18px;bottom:18px;z-index:2147483647;display:flex;align-items:center;gap:8px;max-width:min(92vw,360px);min-height:58px;border:1px solid rgba(148,163,184,.3);background:linear-gradient(135deg,rgba(15,23,42,.9),rgba(30,41,59,.86));border-radius:20px;box-shadow:0 18px 48px rgba(0,0,0,.34),inset 0 1px 0 rgba(255,255,255,.08);padding:8px;font-family:Inter,Arial,Helvetica,sans-serif;backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);">
   <div id="profile-switcher-menu" style="position:absolute;right:0;bottom:72px;display:none;width:min(86vw,292px);border:1px solid rgba(148,163,184,.32);background:linear-gradient(135deg,rgba(15,23,42,.98),rgba(30,41,59,.96));border-radius:18px;box-shadow:0 24px 60px rgba(0,0,0,.42),inset 0 1px 0 rgba(255,255,255,.08);padding:8px;color:#fff;backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);">
+    <button type="button" id="profile-home-button" title="Home" style="display:flex;width:100%;align-items:center;gap:10px;border:0;border-radius:12px;background:rgba(255,255,255,.07);color:#e2e8f0;cursor:pointer;padding:9px 10px;text-align:left;font-size:12px;font-weight:800;">
+      <span style="display:inline-flex;height:28px;min-width:28px;align-items:center;justify-content:center;border-radius:10px;background:rgba(148,163,184,.16);font-size:14px;">⌂</span>
+      <span>Home</span>
+    </button>
+    <div style="height:1px;margin:8px 4px;background:rgba(148,163,184,.24);"></div>
     <div style="padding:6px 9px 8px;color:#94a3b8;font-size:11px;font-weight:800;letter-spacing:.02em;text-transform:uppercase;">Switch profile</div>
     <div style="display:flex;flex-direction:column;gap:3px;">${profileRows}</div>
     <div style="height:1px;margin:8px 4px;background:rgba(148,163,184,.24);"></div>
@@ -200,7 +205,6 @@ function createProfileSwitcher(profileBasePath) {
       <span>Add profile</span>
     </button>
   </div>
-  <button type="button" id="profile-home-button" title="Home" style="display:inline-flex;height:42px;min-width:42px;align-items:center;justify-content:center;border:1px solid rgba(255,255,255,.06);border-radius:14px;background:rgba(255,255,255,.07);color:#e2e8f0;cursor:pointer;font-size:17px;line-height:1;box-shadow:inset 0 1px 0 rgba(255,255,255,.05);">⌂</button>
   <button type="button" id="profile-switcher-button" title="Switch profile" style="display:flex;align-items:center;gap:10px;min-width:0;max-width:280px;min-height:42px;border:1px solid rgba(255,255,255,.06);background:rgba(255,255,255,.075);color:#fff;border-radius:14px;padding:7px 10px 7px 8px;cursor:pointer;font-size:12px;font-weight:700;line-height:1;box-shadow:inset 0 1px 0 rgba(255,255,255,.05);">
     <span style="display:inline-flex;height:32px;min-width:32px;align-items:center;justify-content:center;border-radius:12px;background:${currentProfile.color};box-shadow:0 10px 22px ${currentProfile.color}55;font-size:13px;font-weight:800;">${currentProfile.initial}</span>
     <span style="display:flex;min-width:0;flex:1;flex-direction:column;gap:4px;text-align:left;">
@@ -228,11 +232,9 @@ function createProfileSwitcher(profileBasePath) {
       if (homeButton) {
         homeButton.addEventListener('mouseenter', function () {
           homeButton.style.background = 'rgba(255,255,255,.13)';
-          homeButton.style.boxShadow = '0 0 0 1px rgba(255,255,255,.08), 0 10px 24px rgba(0,0,0,.18)';
         });
         homeButton.addEventListener('mouseleave', function () {
           homeButton.style.background = 'rgba(255,255,255,.07)';
-          homeButton.style.boxShadow = 'inset 0 1px 0 rgba(255,255,255,.05)';
         });
         homeButton.addEventListener('click', function () {
           window.location.href = '/';
