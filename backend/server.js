@@ -585,6 +585,12 @@ function createProxyRedirectSanitizer(profileBasePath) {
         if (!value || typeof value !== 'string') return value;
         var url = value.trim();
         if (url === 'proxy' || url === '/proxy' || url === './proxy') return dashboardPath;
+        if (url.indexOf('https://proxy/' + profileBasePath.slice('/proxy/'.length) + '/') === 0) {
+          return profileBasePath + url.slice(('https://proxy/' + profileBasePath.slice('/proxy/'.length)).length);
+        }
+        if (url.indexOf('http://proxy/' + profileBasePath.slice('/proxy/'.length) + '/') === 0) {
+          return profileBasePath + url.slice(('http://proxy/' + profileBasePath.slice('/proxy/'.length)).length);
+        }
         if (url.indexOf('https://proxy/') === 0) return url.replace('https://proxy', '');
         if (url.indexOf('http://proxy/') === 0) return url.replace('http://proxy', '');
         if (url.indexOf('//proxy/') === 0) return url.slice(1);
@@ -629,6 +635,12 @@ function createLoginRedirectGuard(profileBasePath) {
         if (!value || typeof value !== 'string') return value;
         var url = value.trim();
         if (url === 'proxy' || url === '/proxy' || url === './proxy') return dashboardPath;
+        if (url.indexOf('https://proxy/' + profileBasePath.slice('/proxy/'.length) + '/') === 0) {
+          return profileBasePath + url.slice(('https://proxy/' + profileBasePath.slice('/proxy/'.length)).length);
+        }
+        if (url.indexOf('http://proxy/' + profileBasePath.slice('/proxy/'.length) + '/') === 0) {
+          return profileBasePath + url.slice(('http://proxy/' + profileBasePath.slice('/proxy/'.length)).length);
+        }
         if (url.indexOf('https://proxy/') === 0) return url.replace('https://proxy', '');
         if (url.indexOf('http://proxy/') === 0) return url.replace('http://proxy', '');
         if (url.indexOf('//proxy/') === 0) return url.slice(1);
@@ -652,6 +664,12 @@ function createLoginRedirectGuard(profileBasePath) {
       function normalizeResponseValue(value) {
         if (typeof value !== 'string') return value;
         var normalized = value.trim();
+        if (normalized.indexOf('https://proxy/' + profileBasePath.slice('/proxy/'.length) + '/') === 0) {
+          return profileBasePath + normalized.slice(('https://proxy/' + profileBasePath.slice('/proxy/'.length)).length);
+        }
+        if (normalized.indexOf('http://proxy/' + profileBasePath.slice('/proxy/'.length) + '/') === 0) {
+          return profileBasePath + normalized.slice(('http://proxy/' + profileBasePath.slice('/proxy/'.length)).length);
+        }
         if (normalized.indexOf('https://proxy/') === 0) return normalized.replace('https://proxy', '');
         if (normalized.indexOf('http://proxy/') === 0) return normalized.replace('http://proxy', '');
         if (normalized.indexOf('//proxy/') === 0) return normalized.slice(1);
@@ -688,6 +706,24 @@ function createLoginRedirectGuard(profileBasePath) {
         patchedAjax.__novonexRedirectPatch = true;
         window.jQuery.ajax = patchedAjax;
       }
+      function patchDigitsRedirectParser() {
+        if (window.parse_redirect_url && !window.parse_redirect_url.__novonexRedirectPatch) {
+          var originalParser = window.parse_redirect_url;
+          window.parse_redirect_url = function (redirect) {
+            var normalized = normalizeProxyUrl(String(redirect || ''));
+            if (normalized && normalized.indexOf(profileBasePath) === 0) {
+              window.location.replace(window.location.origin + normalized);
+              return;
+            }
+            if (normalized === dashboardPath || normalized.indexOf('/dashboard') === 0 || normalized.indexOf('dashboard') === 0) {
+              window.location.replace(window.location.origin + dashboardPath);
+              return;
+            }
+            return originalParser.apply(this, arguments);
+          };
+          window.parse_redirect_url.__novonexRedirectPatch = true;
+        }
+      }
       function hasSuccessMessage() {
         var text = (document.body && document.body.innerText || '').toLowerCase();
         return text.indexOf('login successful') !== -1
@@ -695,21 +731,24 @@ function createLoginRedirectGuard(profileBasePath) {
       }
       function goDashboard() {
         enforceDashboardTarget();
-        if (window.location.pathname !== dashboardPath) {
-          window.location.replace(dashboardPath);
+        if (window.location.pathname !== dashboardPath || window.location.hostname === 'proxy') {
+          window.location.replace(window.location.origin + dashboardPath);
         }
       }
       if (!isLoginRoute()) return;
       enforceDashboardTarget();
       patchAjaxRedirects();
+      patchDigitsRedirectParser();
       var checks = 0;
       var interval = window.setInterval(function () {
         checks += 1;
         enforceDashboardTarget();
         patchAjaxRedirects();
+        patchDigitsRedirectParser();
         if (hasSuccessMessage()) {
           window.clearInterval(interval);
-          window.setTimeout(goDashboard, 80);
+          goDashboard();
+          window.setTimeout(goDashboard, 30);
         }
         if (checks > 80) {
           window.clearInterval(interval);
