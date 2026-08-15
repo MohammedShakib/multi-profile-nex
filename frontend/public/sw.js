@@ -1,10 +1,10 @@
-const CACHE_NAME = 'novonex-shell-v2';
+const CACHE_NAME = 'novonex-shell-v3';
 const APP_SHELL = [
   '/',
-  '/favicon.svg',
-  '/icon-192.png',
-  '/icon-512.png',
-  '/apple-touch-icon.png',
+  '/favicon-plane.svg',
+  '/plane-icon-192.png',
+  '/plane-icon-512.png',
+  '/apple-plane-touch-icon.png',
   '/manifest.webmanifest',
   '/novonex-logo.png',
   '/novonex-logo-light.png',
