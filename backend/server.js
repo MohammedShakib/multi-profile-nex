@@ -487,7 +487,7 @@ function createProfileSwitcher(profileBasePath) {
 </div>`;
 }
 
-function rewriteTextResponse(body, profileBasePath, contentType = '') {
+function rewriteTextResponse(body, profileBasePath, contentType = '', requestUrl = '') {
   const escapedTarget = TARGET_ORIGIN.replace(/\//g, '\\/');
   const escapedProfilePath = profileBasePath.replace(/\//g, '\\/');
 
@@ -537,21 +537,17 @@ function rewriteTextResponse(body, profileBasePath, contentType = '') {
     ), profileBasePath);
 
   if (/text\/html/i.test(contentType)) {
-    const withRedirectSanitizer = /<head\b[^>]*>/i.test(rewrittenBody)
-      ? rewrittenBody.replace(
-        /<head\b[^>]*>/i,
-        (match) => `${match}${createProxyRedirectSanitizer(profileBasePath)}`,
-      )
-      : `${createProxyRedirectSanitizer(profileBasePath)}${rewrittenBody}`;
+    const isLoginPage = requestUrl.includes(`${profileBasePath}/login`);
+    const injectedTools = `${isLoginPage ? createLoginRedirectGuard(profileBasePath) : ''}${createProfileSwitcher(profileBasePath)}`;
 
-    if (/<\/body>/i.test(withRedirectSanitizer)) {
-      return withRedirectSanitizer.replace(
+    if (/<\/body>/i.test(rewrittenBody)) {
+      return rewrittenBody.replace(
         /<\/body>/i,
-        `${createLoginRedirectGuard(profileBasePath)}${createProfileSwitcher(profileBasePath)}</body>`,
+        `${injectedTools}</body>`,
       );
     }
 
-    return withRedirectSanitizer;
+    return rewrittenBody;
   }
 
   return rewrittenBody;
@@ -574,75 +570,6 @@ function rewriteLoginRedirectTargets(body, profileBasePath) {
       return tag.replace(/>$/, ` value="${dashboardPath}">`);
     },
   );
-}
-
-function createProxyRedirectSanitizer(profileBasePath) {
-  return `<script>
-    (function () {
-      var profileBasePath = '${profileBasePath}';
-      var dashboardPath = profileBasePath + '/dashboard/';
-      function normalizeProxyUrl(value) {
-        if (!value || typeof value !== 'string') return value;
-        var url = value.trim();
-        if (url === 'proxy' || url === '/proxy' || url === './proxy') return dashboardPath;
-        if (url.indexOf('https://proxy/' + profileBasePath.slice('/proxy/'.length) + '/') === 0) {
-          return profileBasePath + url.slice(('https://proxy/' + profileBasePath.slice('/proxy/'.length)).length);
-        }
-        if (url.indexOf('http://proxy/' + profileBasePath.slice('/proxy/'.length) + '/') === 0) {
-          return profileBasePath + url.slice(('http://proxy/' + profileBasePath.slice('/proxy/'.length)).length);
-        }
-        if (url.indexOf('https://proxy/') === 0) return url.replace('https://proxy', '');
-        if (url.indexOf('http://proxy/') === 0) return url.replace('http://proxy', '');
-        if (url.indexOf('//proxy/') === 0) return url.slice(1);
-        if (url.indexOf('proxy/') === 0) return '/' + url;
-        if (url.indexOf('./proxy/') === 0) return '/' + url.slice(2);
-        return value;
-      }
-      try {
-        var NativeURL = window.URL;
-        document.addEventListener('click', function (event) {
-          var link = event.target && event.target.closest && event.target.closest('a[href]');
-          if (!link) return;
-          var rawHref = link.getAttribute('href') || '';
-          var normalizedHref = normalizeProxyUrl(rawHref);
-          if (normalizedHref !== rawHref && normalizedHref.indexOf('/proxy/') === 0) {
-            event.preventDefault();
-            window.location.href = window.location.origin + normalizedHref;
-            return;
-          }
-          try {
-            var resolved = new NativeURL(rawHref, window.location.href);
-            if (resolved.hostname === 'proxy' && resolved.pathname.indexOf('/proxy/') === 0) {
-              event.preventDefault();
-              window.location.href = window.location.origin + resolved.pathname + resolved.search + resolved.hash;
-            }
-          } catch (error) {}
-        }, true);
-        if (NativeURL && window.Proxy && !window.__novonexURLPatch) {
-          window.URL = new window.Proxy(NativeURL, {
-            construct: function (target, args) {
-              if (typeof args[0] === 'string') {
-                var normalizedUrlArgument = normalizeProxyUrl(args[0]);
-                if (normalizedUrlArgument !== args[0] && normalizedUrlArgument.indexOf('/proxy/') === 0) {
-                  args[0] = window.location.origin + normalizedUrlArgument;
-                }
-              }
-              return Reflect.construct(target, args);
-            },
-          });
-          window.__novonexURLPatch = true;
-        }
-        var originalAssign = window.location.assign.bind(window.location);
-        var originalReplace = window.location.replace.bind(window.location);
-        window.location.assign = function (url) {
-          return originalAssign(normalizeProxyUrl(String(url)));
-        };
-        window.location.replace = function (url) {
-          return originalReplace(normalizeProxyUrl(String(url)));
-        };
-      } catch (error) {}
-    })();
-  </script>`;
 }
 
 function createLoginRedirectGuard(profileBasePath) {
@@ -878,6 +805,7 @@ function createProfileProxyRouter(profileName) {
       responseBuffer.toString('utf8'),
       profileBasePath,
       proxyRes.headers['content-type'] || '',
+      req.originalUrl || '',
     );
   });
   const rewriteProxy = createProxyMiddleware({
