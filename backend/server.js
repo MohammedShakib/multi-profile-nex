@@ -600,6 +600,24 @@ function createProxyRedirectSanitizer(profileBasePath) {
       }
       try {
         var NativeURL = window.URL;
+        document.addEventListener('click', function (event) {
+          var link = event.target && event.target.closest && event.target.closest('a[href]');
+          if (!link) return;
+          var rawHref = link.getAttribute('href') || '';
+          var normalizedHref = normalizeProxyUrl(rawHref);
+          if (normalizedHref !== rawHref && normalizedHref.indexOf('/proxy/') === 0) {
+            event.preventDefault();
+            window.location.href = window.location.origin + normalizedHref;
+            return;
+          }
+          try {
+            var resolved = new NativeURL(rawHref, window.location.href);
+            if (resolved.hostname === 'proxy' && resolved.pathname.indexOf('/proxy/') === 0) {
+              event.preventDefault();
+              window.location.href = window.location.origin + resolved.pathname + resolved.search + resolved.hash;
+            }
+          } catch (error) {}
+        }, true);
         if (NativeURL && window.Proxy && !window.__novonexURLPatch) {
           window.URL = new window.Proxy(NativeURL, {
             construct: function (target, args) {
@@ -621,24 +639,6 @@ function createProxyRedirectSanitizer(profileBasePath) {
         window.location.replace = function (url) {
           return originalReplace(normalizeProxyUrl(String(url)));
         };
-        document.addEventListener('click', function (event) {
-          var link = event.target && event.target.closest && event.target.closest('a[href]');
-          if (!link) return;
-          var rawHref = link.getAttribute('href') || '';
-          var normalizedHref = normalizeProxyUrl(rawHref);
-          if (normalizedHref !== rawHref && normalizedHref.indexOf('/proxy/') === 0) {
-            event.preventDefault();
-            window.location.href = window.location.origin + normalizedHref;
-            return;
-          }
-          try {
-            var resolved = new NativeURL(rawHref, window.location.href);
-            if (resolved.hostname === 'proxy' && resolved.pathname.indexOf('/proxy/') === 0) {
-              event.preventDefault();
-              window.location.href = window.location.origin + resolved.pathname + resolved.search + resolved.hash;
-            }
-          } catch (error) {}
-        }, true);
       } catch (error) {}
     })();
   </script>`;
