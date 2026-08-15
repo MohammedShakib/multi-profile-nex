@@ -165,23 +165,31 @@ function createProfileSwitcher(profileBasePath) {
   const currentInitial = isPersonal ? 'P' : 'S';
   const accentColor = isPersonal ? '#6366f1' : '#10b981';
 
-  return `<div id="profile-switcher-root" style="position:fixed;right:18px;bottom:18px;z-index:2147483647;display:flex;align-items:center;gap:7px;border:1px solid rgba(148,163,184,.32);background:linear-gradient(135deg,rgba(15,23,42,.96),rgba(30,41,59,.96));border-radius:16px;box-shadow:0 14px 34px rgba(0,0,0,.3),inset 0 1px 0 rgba(255,255,255,.08);padding:7px;font-family:Inter,Arial,Helvetica,sans-serif;backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);">
-  <button type="button" id="profile-home-button" title="Back to dashboard" style="display:inline-flex;height:32px;min-width:32px;align-items:center;justify-content:center;border:0;border-radius:12px;background:rgba(255,255,255,.1);color:#e2e8f0;cursor:pointer;font-size:15px;line-height:1;">⌂</button>
-  <button type="button" id="profile-switcher-button" title="Switch profile" style="display:flex;align-items:center;gap:8px;max-width:min(78vw,220px);border:0;background:transparent;color:#fff;border-radius:12px;padding:0;cursor:pointer;font-size:12px;font-weight:700;line-height:1;">
-    <span style="display:flex;align-items:center;gap:7px;min-width:0;padding:5px 9px 5px 5px;border-radius:12px;background:rgba(255,255,255,.08);">
-      <span style="display:inline-flex;height:26px;min-width:26px;align-items:center;justify-content:center;border-radius:9px;background:${accentColor};box-shadow:0 8px 18px ${accentColor}55;font-size:12px;font-weight:800;">${currentInitial}</span>
-      <span style="display:flex;min-width:0;flex-direction:column;gap:3px;text-align:left;">
-        <span style="font-size:13px;color:#fff;white-space:nowrap;">${currentLabel}</span>
-        <span style="max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:10px;font-weight:600;color:#cbd5e1;">${currentEmail}</span>
+  return `<div id="profile-switcher-root" style="position:fixed;right:18px;bottom:18px;z-index:2147483647;display:flex;align-items:center;gap:8px;max-width:min(92vw,360px);min-height:58px;border:1px solid rgba(148,163,184,.3);background:linear-gradient(135deg,rgba(15,23,42,.9),rgba(30,41,59,.86));border-radius:20px;box-shadow:0 18px 48px rgba(0,0,0,.34),inset 0 1px 0 rgba(255,255,255,.08);padding:8px;font-family:Inter,Arial,Helvetica,sans-serif;backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);">
+  <button type="button" id="profile-home-button" title="Home" style="display:inline-flex;height:42px;min-width:42px;align-items:center;justify-content:center;border:1px solid rgba(255,255,255,.06);border-radius:14px;background:rgba(255,255,255,.07);color:#e2e8f0;cursor:pointer;font-size:17px;line-height:1;box-shadow:inset 0 1px 0 rgba(255,255,255,.05);">⌂</button>
+  <button type="button" id="profile-switcher-button" title="Switch profile" style="display:flex;align-items:center;gap:10px;min-width:0;max-width:280px;min-height:42px;border:1px solid rgba(255,255,255,.06);background:rgba(255,255,255,.075);color:#fff;border-radius:14px;padding:7px 10px 7px 8px;cursor:pointer;font-size:12px;font-weight:700;line-height:1;box-shadow:inset 0 1px 0 rgba(255,255,255,.05);">
+    <span style="display:inline-flex;height:32px;min-width:32px;align-items:center;justify-content:center;border-radius:12px;background:${accentColor};box-shadow:0 10px 22px ${accentColor}55;font-size:13px;font-weight:800;">${currentInitial}</span>
+    <span style="display:flex;min-width:0;flex:1;flex-direction:column;gap:4px;text-align:left;">
+      <span style="display:flex;align-items:center;gap:6px;font-size:13px;color:#fff;white-space:nowrap;">
+        <span>${currentLabel}</span>
+        <span style="color:#94a3b8;font-size:10px;">⌄</span>
       </span>
+      <span style="max-width:170px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:10px;font-weight:600;color:#cbd5e1;">${currentEmail}</span>
     </span>
-    <span aria-hidden="true" style="display:inline-flex;height:32px;min-width:32px;align-items:center;justify-content:center;border-radius:12px;background:rgba(255,255,255,.1);color:#e2e8f0;font-size:16px;">⇄</span>
   </button>
   <script>
     (function () {
       var button = document.getElementById('profile-switcher-button');
       var homeButton = document.getElementById('profile-home-button');
       if (homeButton) {
+        homeButton.addEventListener('mouseenter', function () {
+          homeButton.style.background = 'rgba(255,255,255,.13)';
+          homeButton.style.boxShadow = '0 0 0 1px rgba(255,255,255,.08), 0 10px 24px rgba(0,0,0,.18)';
+        });
+        homeButton.addEventListener('mouseleave', function () {
+          homeButton.style.background = 'rgba(255,255,255,.07)';
+          homeButton.style.boxShadow = 'inset 0 1px 0 rgba(255,255,255,.05)';
+        });
         homeButton.addEventListener('click', function () {
           window.location.href = '/';
         });
@@ -189,11 +197,13 @@ function createProfileSwitcher(profileBasePath) {
       if (!button) return;
       button.addEventListener('mouseenter', function () {
         button.style.transform = 'translateY(-1px)';
-        button.style.borderColor = 'rgba(226,232,240,.5)';
+        button.style.background = 'rgba(255,255,255,.13)';
+        button.style.borderColor = 'rgba(226,232,240,.22)';
       });
       button.addEventListener('mouseleave', function () {
         button.style.transform = '';
-        button.style.borderColor = 'rgba(148,163,184,.32)';
+        button.style.background = 'rgba(255,255,255,.075)';
+        button.style.borderColor = 'rgba(255,255,255,.06)';
       });
       button.addEventListener('click', function () {
         var targetBase = '${targetBasePath}';
