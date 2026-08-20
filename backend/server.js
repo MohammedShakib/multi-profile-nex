@@ -248,53 +248,6 @@ function isCacheableAssetRequest(req) {
   return cacheableAssetExtensions.has(path.extname(req.path || '').toLowerCase());
 }
 
-function buildUpstreamUrlFromProxyValue(value, profileBasePath) {
-  if (typeof value !== 'string' || !value.trim()) {
-    return null;
-  }
-
-  try {
-    const parsed = new URL(value);
-    const pathname = parsed.pathname.startsWith(profileBasePath)
-      ? parsed.pathname.slice(profileBasePath.length) || '/'
-      : parsed.pathname;
-
-    if (parsed.origin === TARGET_ORIGIN) {
-      return `${TARGET_ORIGIN}${pathname}${parsed.search}`;
-    }
-
-    if (parsed.pathname.startsWith(profileBasePath)) {
-      return `${TARGET_ORIGIN}${pathname}${parsed.search}`;
-    }
-  } catch {
-    if (value.startsWith(profileBasePath)) {
-      const pathname = value.slice(profileBasePath.length) || '/';
-      return `${TARGET_ORIGIN}${pathname}`;
-    }
-  }
-
-  return null;
-}
-
-function rewriteOutgoingRequestHeaders(proxyReq, req, profileBasePath) {
-  const incomingOrigin = req.headers.origin;
-  if (typeof incomingOrigin === 'string' && incomingOrigin && incomingOrigin !== TARGET_ORIGIN) {
-    proxyReq.setHeader('origin', TARGET_ORIGIN);
-  }
-
-  const incomingReferer = req.headers.referer || req.headers.referrer;
-  const rewrittenReferer = buildUpstreamUrlFromProxyValue(incomingReferer, profileBasePath);
-
-  if (rewrittenReferer) {
-    proxyReq.setHeader('referer', rewrittenReferer);
-    return;
-  }
-
-  if (typeof incomingReferer === 'string' && incomingReferer && !incomingReferer.startsWith(TARGET_ORIGIN)) {
-    proxyReq.setHeader('referer', `${TARGET_ORIGIN}/`);
-  }
-}
-
 function prepareProxyResponse(proxyRes, req, profileBasePath) {
   rewriteSetCookieHeader(proxyRes, profileBasePath);
   rewriteLocationHeader(proxyRes, profileBasePath);
@@ -949,9 +902,6 @@ function createProfileProxyOptions(profileName, profileBasePath) {
     ws: true,
     secure: true,
     on: {
-      proxyReq(proxyReq, req) {
-        rewriteOutgoingRequestHeaders(proxyReq, req, profileBasePath);
-      },
       proxyRes(proxyRes, req) {
         prepareProxyResponse(proxyRes, req, profileBasePath);
       },
@@ -995,8 +945,7 @@ function createProfileProxyRouter(profileName) {
     selfHandleResponse: true,
     on: {
       ...createProfileProxyOptions(profileName, profileBasePath).on,
-      proxyReq(proxyReq, req) {
-        rewriteOutgoingRequestHeaders(proxyReq, req, profileBasePath);
+      proxyReq(proxyReq) {
         // Keep upstream compression negotiable; responseInterceptor can decode
         // common encodings and will update response headers before sending.
         proxyReq.setHeader('accept-encoding', 'gzip, br, deflate');
