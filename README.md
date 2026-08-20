@@ -58,3 +58,7 @@ Create a Render Web Service, not a Static Site.
 Build Command: npm install && npm run build
 Start Command: npm start
 ```
+
+## Internal Notes
+
+- Video playback analysis and working commit history: [docs/video-playback-analysis.md](docs/video-playback-analysis.md)
