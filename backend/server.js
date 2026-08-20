@@ -332,7 +332,7 @@ function createProfileSwitcher(profileBasePath) {
   return `<style id="profile-switcher-styles">
     #profile-switcher-root.profile-switcher-dock { position:fixed;right:18px;bottom:18px;z-index:2147483647;display:flex;align-items:center;gap:8px;max-width:min(92vw,360px);min-height:58px;border:1px solid rgba(148,163,184,.3);background:linear-gradient(135deg,rgba(15,23,42,.9),rgba(30,41,59,.86));border-radius:20px;box-shadow:0 18px 48px rgba(0,0,0,.34),inset 0 1px 0 rgba(255,255,255,.08);padding:8px;font-family:Inter,Arial,Helvetica,sans-serif;backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px); }
     #profile-switcher-root.profile-switcher-dock.profile-dock-positioned { right:auto;bottom:auto; }
-    #profile-switcher-root #profile-switcher-button { touch-action:manipulation; }
+    #profile-switcher-root #profile-switcher-button { touch-action:none; }
     @media (max-width:900px), (hover:none), (pointer:coarse) {
       #profile-switcher-root.profile-switcher-dock { width:58px; height:58px;min-width:58px;max-width:58px;min-height:58px;padding:4px;border-radius:20px; }
       #profile-switcher-root #profile-switcher-button { width:48px !important;height:48px !important;min-width:48px !important;max-width:48px !important;min-height:48px !important;padding:3px !important;justify-content:center;border-radius:16px; }
@@ -451,7 +451,6 @@ function createProfileSwitcher(profileBasePath) {
 
       function setupMobileDrag() {
         if (!root || !button) return;
-        if (isMobileDock()) return;
         var drag = null;
         button.addEventListener('pointerdown', function (event) {
           if (event.button === 2) return;
@@ -580,10 +579,6 @@ function createProfileSwitcher(profileBasePath) {
         if (suppressClick) {
           suppressClick = false;
           return;
-        }
-        if (menu) {
-          menu.style.right = '';
-          menu.style.bottom = '';
         }
         toggleMenu();
       });
