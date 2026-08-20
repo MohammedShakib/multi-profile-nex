@@ -298,6 +298,11 @@ function isOriginalSiteOnlyPathname(pathname = '') {
   return /^\/courses\/[^?#]+/i.test(pathname) || isLessonPathname(pathname);
 }
 
+function extractOriginalCoursePath(pathname = '') {
+  const match = pathname.match(/^(\/courses\/[^/]+)(?:\/lessons\/[^/?#]+)?\/?$/i);
+  return match ? `${match[1]}/` : null;
+}
+
 function buildOriginalSiteOnlyUrl(pathname, search = '', profileBasePath = '') {
   if (typeof pathname !== 'string' || !pathname) {
     return null;
@@ -309,6 +314,13 @@ function buildOriginalSiteOnlyUrl(pathname, search = '', profileBasePath = '') {
 
   if (!isOriginalSiteOnlyPathname(upstreamPath)) {
     return null;
+  }
+
+  if (isLessonPathname(upstreamPath)) {
+    const coursePath = extractOriginalCoursePath(upstreamPath);
+    if (coursePath) {
+      return `${TARGET_ORIGIN}${coursePath}`;
+    }
   }
 
   return `${TARGET_ORIGIN}${upstreamPath}${search || ''}`;
@@ -853,6 +865,13 @@ function rewriteOriginalSiteOnlyNavigationUrls(body, profileBasePath) {
 
     if (!isOriginalSiteOnlyPathname(pathname)) {
       return match;
+    }
+
+    if (isLessonPathname(pathname)) {
+      const coursePath = extractOriginalCoursePath(pathname);
+      if (coursePath) {
+        return `${attribute}=${quote}${TARGET_ORIGIN}${coursePath}${quote}`;
+      }
     }
 
     return `${attribute}=${quote}${originalUrl}${quote}`;
