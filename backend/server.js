@@ -409,6 +409,7 @@ function createProfileSwitcher(profileBasePath) {
             originLeft: rect.left,
             originTop: rect.top,
             moved: false,
+            pointerType: event.pointerType || '',
           };
           button.setPointerCapture(event.pointerId);
         });
@@ -416,7 +417,8 @@ function createProfileSwitcher(profileBasePath) {
           if (!drag) return;
           var deltaX = event.clientX - drag.startX;
           var deltaY = event.clientY - drag.startY;
-          if (!drag.moved && Math.hypot(deltaX, deltaY) < 5) return;
+          var movementThreshold = drag.pointerType === 'touch' || isMobileDock() ? 12 : 5;
+          if (!drag.moved && Math.hypot(deltaX, deltaY) < movementThreshold) return;
           drag.moved = true;
           var position = clampDockPosition(drag.originLeft + deltaX, drag.originTop + deltaY);
           root.classList.add('profile-dock-positioned');
@@ -429,12 +431,23 @@ function createProfileSwitcher(profileBasePath) {
         });
         function finishDrag() {
           if (!drag) return;
-          suppressClick = drag.moved;
-          if (drag.moved) saveDockPosition();
+          suppressClick = true;
+          if (drag.moved) {
+            saveDockPosition();
+          } else {
+            if (menu) {
+              menu.style.right = '';
+              menu.style.bottom = '';
+            }
+            toggleMenu();
+          }
           drag = null;
         }
         button.addEventListener('pointerup', finishDrag);
-        button.addEventListener('pointercancel', finishDrag);
+        button.addEventListener('pointercancel', function () {
+          drag = null;
+          suppressClick = true;
+        });
       }
       function getStoredProfiles() {
         try {
@@ -523,10 +536,17 @@ function createProfileSwitcher(profileBasePath) {
         button.style.background = 'rgba(255,255,255,.075)';
         button.style.borderColor = 'rgba(255,255,255,.06)';
       });
-      button.addEventListener('click', function () {
+      button.addEventListener('click', function (event) {
         if (suppressClick) {
           suppressClick = false;
           return;
+        }
+        if (event.detail !== 0) {
+          return;
+        }
+        if (menu) {
+          menu.style.right = '';
+          menu.style.bottom = '';
         }
         toggleMenu();
       });
