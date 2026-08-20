@@ -742,6 +742,13 @@ function createLoginRedirectGuard(profileBasePath) {
         if (url.indexOf('/dashboard') === 0 || url.indexOf('dashboard') === 0) return dashboardPath;
         return value;
       }
+      function toAbsoluteProxyUrl(value) {
+        var normalized = normalizeProxyUrl(value);
+        if (typeof normalized === 'string' && normalized.indexOf('/proxy/') === 0) {
+          return window.location.origin + normalized;
+        }
+        return normalized;
+      }
       function enforceDashboardTarget() {
         var inputs = document.querySelectorAll('input[name="digits_redirect_page"]');
         for (var index = 0; index < inputs.length; index += 1) {
@@ -758,15 +765,37 @@ function createLoginRedirectGuard(profileBasePath) {
         window.digits_redirect = function (redirect) {
           enforceDashboardTarget();
           var normalized = normalizeProxyUrl(typeof redirect === 'string' ? redirect : '');
+          var absoluteUrl = toAbsoluteProxyUrl(normalized);
+          if (typeof absoluteUrl === 'string' && absoluteUrl.indexOf(window.location.origin + '/proxy/') === 0) {
+            window.location.assign(absoluteUrl);
+            return;
+          }
           if (normalized && normalized !== redirect) {
             arguments[0] = normalized;
           }
           return originalRedirect.apply(this, arguments);
-        }
+        };
         window.digits_redirect.__novonexRedirectPatch = true;
+      }
+      function patchRedirectParser() {
+        if (typeof window.parse_redirect_url !== 'function' || window.parse_redirect_url.__novonexRedirectPatch) return;
+        var originalParser = window.parse_redirect_url;
+        window.parse_redirect_url = function (redirect) {
+          var absoluteUrl = toAbsoluteProxyUrl(typeof redirect === 'string' ? redirect : '');
+          if (typeof absoluteUrl === 'string' && absoluteUrl.indexOf(window.location.origin + '/proxy/') === 0) {
+            window.location.assign(absoluteUrl);
+            return;
+          }
+          if (typeof redirect === 'string') {
+            arguments[0] = normalizeProxyUrl(redirect);
+          }
+          return originalParser.apply(this, arguments);
+        };
+        window.parse_redirect_url.__novonexRedirectPatch = true;
       }
       enforceDashboardTarget();
       patchDigitsRedirect();
+      patchRedirectParser();
       document.addEventListener('submit', function () {
         enforceDashboardTarget();
       }, true);
@@ -775,11 +804,13 @@ function createLoginRedirectGuard(profileBasePath) {
         if (target && target.closest && target.closest('button, input[type="submit"], .digits_login, .digit_send_otp')) {
           enforceDashboardTarget();
           patchDigitsRedirect();
+          patchRedirectParser();
         }
       }, true);
       window.setTimeout(function () {
         enforceDashboardTarget();
         patchDigitsRedirect();
+        patchRedirectParser();
       }, 50);
     })();
   </script>`;

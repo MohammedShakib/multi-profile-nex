@@ -118,6 +118,12 @@ function getInitials(profile) {
   return source.slice(0, 2).toUpperCase();
 }
 
+function resolveProfileUrl(profilePath) {
+  return PROXY_BASE_URL
+    ? new URL(profilePath, PROXY_BASE_URL).toString()
+    : new URL(profilePath, window.location.origin).toString();
+}
+
 const ProfileSelection = () => {
   const [storedProfiles, setStoredProfiles] = useState([]);
   const [loadingProfile, setLoadingProfile] = useState(null);
@@ -169,7 +175,7 @@ const ProfileSelection = () => {
     window.clearTimeout(navigationTimeoutRef.current);
 
     navigationTimeoutRef.current = window.setTimeout(() => {
-      window.location.assign(`${PROXY_BASE_URL}${profile.proxyPath}`);
+      window.location.assign(resolveProfileUrl(profile.proxyPath));
     }, 180);
   };
 
