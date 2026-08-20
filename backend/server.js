@@ -332,7 +332,7 @@ function createProfileSwitcher(profileBasePath) {
   return `<style id="profile-switcher-styles">
     #profile-switcher-root.profile-switcher-dock { position:fixed;right:18px;bottom:18px;z-index:2147483647;display:flex;align-items:center;gap:8px;max-width:min(92vw,360px);min-height:58px;border:1px solid rgba(148,163,184,.3);background:linear-gradient(135deg,rgba(15,23,42,.9),rgba(30,41,59,.86));border-radius:20px;box-shadow:0 18px 48px rgba(0,0,0,.34),inset 0 1px 0 rgba(255,255,255,.08);padding:8px;font-family:Inter,Arial,Helvetica,sans-serif;backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px); }
     #profile-switcher-root.profile-switcher-dock.profile-dock-positioned { right:auto;bottom:auto; }
-    #profile-switcher-root #profile-switcher-button { touch-action:manipulation; }
+    #profile-switcher-root #profile-switcher-button { touch-action:none; }
     @media (max-width:900px), (hover:none), (pointer:coarse) {
       #profile-switcher-root.profile-switcher-dock { width:58px; height:58px;min-width:58px;max-width:58px;min-height:58px;padding:4px;border-radius:20px; }
       #profile-switcher-root #profile-switcher-button { width:48px !important;height:48px !important;min-width:48px !important;max-width:48px !important;min-height:48px !important;padding:3px !important;justify-content:center;border-radius:16px; }
@@ -451,7 +451,6 @@ function createProfileSwitcher(profileBasePath) {
 
       function setupMobileDrag() {
         if (!root || !button) return;
-        if (isMobileDock()) return;
         var drag = null;
         button.addEventListener('pointerdown', function (event) {
           if (event.button === 2) return;
@@ -462,6 +461,7 @@ function createProfileSwitcher(profileBasePath) {
             originLeft: rect.left,
             originTop: rect.top,
             moved: false,
+            pointerType: event.pointerType || '',
           };
           button.setPointerCapture(event.pointerId);
         });
@@ -469,7 +469,8 @@ function createProfileSwitcher(profileBasePath) {
           if (!drag) return;
           var deltaX = event.clientX - drag.startX;
           var deltaY = event.clientY - drag.startY;
-          if (!drag.moved && Math.hypot(deltaX, deltaY) < 5) return;
+          var movementThreshold = drag.pointerType === 'touch' || isMobileDock() ? 12 : 5;
+          if (!drag.moved && Math.hypot(deltaX, deltaY) < movementThreshold) return;
           drag.moved = true;
           var position = clampDockPosition(drag.originLeft + deltaX, drag.originTop + deltaY);
           root.classList.add('profile-dock-positioned');
@@ -482,12 +483,23 @@ function createProfileSwitcher(profileBasePath) {
         });
         function finishDrag() {
           if (!drag) return;
-          suppressClick = drag.moved;
-          if (drag.moved) saveDockPosition();
+          suppressClick = true;
+          if (drag.moved) {
+            saveDockPosition();
+          } else {
+            if (menu) {
+              menu.style.right = '';
+              menu.style.bottom = '';
+            }
+            toggleMenu();
+          }
           drag = null;
         }
         button.addEventListener('pointerup', finishDrag);
-        button.addEventListener('pointercancel', finishDrag);
+        button.addEventListener('pointercancel', function () {
+          drag = null;
+          suppressClick = true;
+        });
       }
       function getStoredProfiles() {
         try {
@@ -576,9 +588,12 @@ function createProfileSwitcher(profileBasePath) {
         button.style.background = 'rgba(255,255,255,.075)';
         button.style.borderColor = 'rgba(255,255,255,.06)';
       });
-      button.addEventListener('click', function () {
+      button.addEventListener('click', function (event) {
         if (suppressClick) {
           suppressClick = false;
+          return;
+        }
+        if (event.detail !== 0) {
           return;
         }
         if (menu) {
