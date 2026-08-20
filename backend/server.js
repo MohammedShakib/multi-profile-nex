@@ -598,6 +598,181 @@ function createProfileSwitcher(profileBasePath) {
 </div>`;
 }
 
+function createDebugOverlayScript() {
+  return `<script>
+    (function () {
+      if (!/[?&]debug=1(?:&|$)/.test(window.location.search)) {
+        return;
+      }
+
+      try {
+        window.oncontextmenu = null;
+        document.oncontextmenu = null;
+        window.onkeydown = null;
+        document.onkeydown = null;
+      } catch (error) {}
+
+      function isDevtoolsShortcut(event) {
+        var key = (event.key || '').toLowerCase();
+        var ctrlOrMeta = event.ctrlKey || event.metaKey;
+        return key === 'f12'
+          || (ctrlOrMeta && event.shiftKey && (key === 'i' || key === 'j' || key === 'c'))
+          || (ctrlOrMeta && key === 'u');
+      }
+
+      document.addEventListener('contextmenu', function (event) {
+        event.stopImmediatePropagation();
+      }, true);
+
+      document.addEventListener('keydown', function (event) {
+        if (isDevtoolsShortcut(event)) {
+          event.stopImmediatePropagation();
+        }
+      }, true);
+
+      var panel = document.createElement('div');
+      panel.id = 'novonex-debug-panel';
+      panel.style.cssText = 'position:fixed;left:16px;bottom:16px;z-index:2147483647;width:min(92vw,420px);max-height:50vh;overflow:auto;background:rgba(15,23,42,.96);color:#e2e8f0;border:1px solid rgba(148,163,184,.35);border-radius:14px;box-shadow:0 18px 50px rgba(0,0,0,.38);font:12px/1.45 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;';
+
+      var header = document.createElement('div');
+      header.style.cssText = 'display:flex;align-items:center;justify-content:space-between;gap:8px;padding:10px 12px;border-bottom:1px solid rgba(148,163,184,.22);position:sticky;top:0;background:rgba(15,23,42,.98);';
+      header.innerHTML = '<strong style="font-size:12px;">Debug Mode</strong><div style="display:flex;gap:8px;"><button type="button" data-action="copy" style="border:0;border-radius:8px;padding:6px 8px;background:#1d4ed8;color:#fff;cursor:pointer;">Copy</button><button type="button" data-action="clear" style="border:0;border-radius:8px;padding:6px 8px;background:#334155;color:#fff;cursor:pointer;">Clear</button></div>';
+
+      var body = document.createElement('div');
+      body.style.cssText = 'padding:10px 12px;white-space:pre-wrap;word-break:break-word;';
+
+      panel.appendChild(header);
+      panel.appendChild(body);
+      document.documentElement.appendChild(panel);
+
+      var entries = [];
+
+      function safeStringify(value) {
+        if (typeof value === 'string') {
+          return value;
+        }
+
+        try {
+          return JSON.stringify(value, null, 2);
+        } catch (error) {
+          return String(value);
+        }
+      }
+
+      function render() {
+        if (!entries.length) {
+          body.textContent = 'No client-side errors captured yet.';
+          return;
+        }
+
+        body.textContent = entries.join('\\n\\n');
+      }
+
+      function log(kind, message, extra) {
+        var prefix = '[' + new Date().toLocaleTimeString() + '] ' + kind;
+        var text = prefix + ': ' + message;
+        if (typeof extra !== 'undefined') {
+          text += '\\n' + safeStringify(extra);
+        }
+        entries.unshift(text);
+        entries = entries.slice(0, 40);
+        render();
+      }
+
+      header.addEventListener('click', function (event) {
+        var button = event.target.closest('button[data-action]');
+        if (!button) return;
+        var action = button.getAttribute('data-action');
+        if (action === 'clear') {
+          entries = [];
+          render();
+          return;
+        }
+        if (action === 'copy') {
+          var text = entries.join('\\n\\n');
+          if (navigator.clipboard && text) {
+            navigator.clipboard.writeText(text).catch(function () {});
+          }
+        }
+      });
+
+      window.addEventListener('error', function (event) {
+        log('window.error', event.message || 'Unknown error', {
+          file: event.filename || '',
+          line: event.lineno || 0,
+          column: event.colno || 0,
+        });
+      });
+
+      window.addEventListener('unhandledrejection', function (event) {
+        var reason = event.reason;
+        log('unhandledrejection', reason && reason.message ? reason.message : String(reason));
+      });
+
+      var originalConsoleError = console.error;
+      console.error = function () {
+        var args = Array.prototype.slice.call(arguments).map(function (item) {
+          return safeStringify(item);
+        });
+        log('console.error', args.join(' '));
+        return originalConsoleError.apply(this, arguments);
+      };
+
+      if (typeof window.fetch === 'function') {
+        var originalFetch = window.fetch.bind(window);
+        window.fetch = function () {
+          return originalFetch.apply(this, arguments).then(function (response) {
+            if (!response.ok) {
+              log('fetch', response.url, { status: response.status, statusText: response.statusText });
+            }
+            return response;
+          }).catch(function (error) {
+            log('fetch.error', error && error.message ? error.message : String(error));
+            throw error;
+          });
+        };
+      }
+
+      var originalOpen = XMLHttpRequest.prototype.open;
+      var originalSend = XMLHttpRequest.prototype.send;
+      XMLHttpRequest.prototype.open = function (method, url) {
+        this.__novonexDebug = { method: method, url: url };
+        return originalOpen.apply(this, arguments);
+      };
+      XMLHttpRequest.prototype.send = function () {
+        this.addEventListener('loadend', function () {
+          if (this.status >= 400 || this.status === 0) {
+            log('xhr', this.__novonexDebug && this.__novonexDebug.url ? this.__novonexDebug.url : 'Unknown XHR', {
+              method: this.__novonexDebug && this.__novonexDebug.method ? this.__novonexDebug.method : '',
+              status: this.status,
+            });
+          }
+        });
+        return originalSend.apply(this, arguments);
+      };
+
+      var lastMediaSignature = '';
+      window.setInterval(function () {
+        var media = Array.prototype.slice.call(document.querySelectorAll('video, iframe, source')).map(function (node) {
+          return {
+            tag: node.tagName,
+            src: node.getAttribute('src') || '',
+            currentSrc: node.currentSrc || '',
+          };
+        });
+        var signature = safeStringify(media);
+        if (media.length && signature !== lastMediaSignature) {
+          lastMediaSignature = signature;
+          log('media', 'Detected media nodes', media);
+        }
+      }, 5000);
+
+      log('debug', 'Debug overlay enabled. If browser inspect is blocked, use this panel or Chrome menu > More tools > Developer tools.');
+      render();
+    })();
+  </script>`;
+}
+
 function rewriteHtmlAttributeUrls(body, profileBasePath) {
   const attributePattern = /\b(href|src|action|poster|data-src|data-href|data-url)\s*=\s*(["'])(.*?)\2/gi;
 
@@ -677,7 +852,7 @@ function rewriteHtmlResponse(body, profileBasePath, requestUrl = '') {
     profileBasePath,
   );
   const isLoginPage = requestUrl.includes(`${profileBasePath}/login`);
-  const injectedTools = `${isLoginPage ? createLoginRedirectGuard(profileBasePath) : ''}${createProfileSwitcher(profileBasePath)}`;
+  const injectedTools = `${isLoginPage ? createLoginRedirectGuard(profileBasePath) : ''}${createProfileSwitcher(profileBasePath)}${createDebugOverlayScript()}`;
 
   if (/<\/body>/i.test(rewrittenBody)) {
     return rewrittenBody.replace(
