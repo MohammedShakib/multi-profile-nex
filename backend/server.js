@@ -290,6 +290,23 @@ function buildUpstreamUrlFromProxyValue(value, profileBasePath) {
   return null;
 }
 
+function isLessonPathname(pathname = '') {
+  return /\/lessons\/[^/?#]+/i.test(pathname);
+}
+
+function buildOriginalLessonUrl(pathname, search = '', profileBasePath = '') {
+  if (typeof pathname !== 'string' || !pathname.startsWith(profileBasePath)) {
+    return null;
+  }
+
+  const upstreamPath = pathname.slice(profileBasePath.length) || '/';
+  if (!isLessonPathname(upstreamPath)) {
+    return null;
+  }
+
+  return `${TARGET_ORIGIN}${upstreamPath}${search || ''}`;
+}
+
 function rewriteOutgoingRequestHeaders(proxyReq, req, profileBasePath) {
   const incomingOrigin = req.headers.origin;
   if (typeof incomingOrigin === 'string' && incomingOrigin && incomingOrigin !== TARGET_ORIGIN) {
@@ -816,6 +833,25 @@ function rewriteHtmlAttributeUrls(body, profileBasePath) {
   });
 }
 
+function rewriteLessonAnchorUrls(body, profileBasePath) {
+  return body.replace(/(<a\b[^>]*\bhref=)(["'])(.*?)\2/gi, (match, prefix, quote, rawValue) => {
+    const originalUrl = buildUpstreamUrlFromProxyValue(rawValue, profileBasePath);
+
+    if (!originalUrl) {
+      return match;
+    }
+
+    const pathnameWithQuery = originalUrl.replace(/^https?:\/\/[^/]+/i, '');
+    const pathname = pathnameWithQuery.split('?')[0] || '';
+
+    if (!isLessonPathname(pathname)) {
+      return match;
+    }
+
+    return `${prefix}${quote}${originalUrl}${quote}`;
+  });
+}
+
 function rewriteHtmlSrcsetUrls(body, profileBasePath) {
   return body.replace(/\bsrcset\s*=\s*(["'])(.*?)\1/gi, (match, quote, rawValue) => {
     const rewritten = rawValue
@@ -876,8 +912,11 @@ function rewriteHtmlResponse(body, profileBasePath, requestUrl = '') {
   const sanitizedBody = body.replace(/<base\b[^>]*>/gi, '');
   const rewrittenBody = rewriteInlineConfigUrls(
     rewriteHtmlSrcsetUrls(
-      rewriteHtmlAttributeUrls(
-        rewriteLoginRedirectTargets(sanitizedBody, profileBasePath),
+      rewriteLessonAnchorUrls(
+        rewriteHtmlAttributeUrls(
+          rewriteLoginRedirectTargets(sanitizedBody, profileBasePath),
+          profileBasePath,
+        ),
         profileBasePath,
       ),
       profileBasePath,
@@ -1148,6 +1187,25 @@ function handleProxyError(profileName, error, req, res) {
   }
 }
 
+function shouldRedirectLessonRequest(req) {
+  if (!['GET', 'HEAD'].includes(req.method)) {
+    return false;
+  }
+
+  const pathname = req.path || '';
+  if (!isLessonPathname(pathname)) {
+    return false;
+  }
+
+  const extension = path.extname(pathname).toLowerCase();
+  if (extension) {
+    return false;
+  }
+
+  const acceptHeader = req.headers.accept || '';
+  return !acceptHeader || acceptHeader.includes('text/html');
+}
+
 function createProfileProxyOptions(profileName, profileBasePath) {
   return {
     target: TARGET_URL,
@@ -1232,10 +1290,21 @@ function createProfileProxyRouter(profileName) {
 
 app.use('/proxy/:profileName', (req, res, next) => {
   const profileName = req.params.profileName;
+  const profileBasePath = `/proxy/${profileName}`;
 
   if (!/^[a-z0-9-]{1,32}$/i.test(profileName)) {
     res.status(404).json({ error: 'Unknown profile' });
     return;
+  }
+
+  if (shouldRedirectLessonRequest(req)) {
+    const queryIndex = req.originalUrl.indexOf('?');
+    const search = queryIndex >= 0 ? req.originalUrl.slice(queryIndex) : '';
+    const lessonUrl = buildOriginalLessonUrl(req.path || '', search, profileBasePath);
+    if (lessonUrl) {
+      res.redirect(302, lessonUrl);
+      return;
+    }
   }
 
   if (!profileProxyRouters.has(profileName)) {
