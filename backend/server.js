@@ -189,6 +189,20 @@ function isSkippableUrl(value) {
   );
 }
 
+function shouldBypassProxyRewrite(value) {
+  if (typeof value !== 'string') {
+    return false;
+  }
+
+  const trimmed = value.trim();
+
+  return (
+    /(?:^|\/\/)(?:[^/]+\.)?vdocipher\.com(?:\/|$)/i.test(trimmed)
+    || /^\/?cdn\.cgi(?:[/?#]|$)/i.test(trimmed)
+    || /^\.?\/?cdn\.cgi(?:[/?#]|$)/i.test(trimmed)
+  );
+}
+
 function normalizeUrlLikeValue(value, profileBasePath, { allowRootRelative = true } = {}) {
   if (typeof value !== 'string') {
     return value;
@@ -196,7 +210,7 @@ function normalizeUrlLikeValue(value, profileBasePath, { allowRootRelative = tru
 
   const trimmed = value.trim();
 
-  if (!trimmed || isSkippableUrl(trimmed)) {
+  if (!trimmed || isSkippableUrl(trimmed) || shouldBypassProxyRewrite(trimmed)) {
     return value;
   }
 
@@ -835,27 +849,26 @@ function rewriteInlineConfigUrls(body, profileBasePath) {
   const inlineUrlKeys = [
     'ajaxurl',
     'ajax_url',
+    'cart_url',
     'home_url',
-    'href',
-    'link',
     'logout_url',
     'next_url',
+    'resturl',
     'redirect',
     'redirect_url',
     'site_url',
-    'src',
-    'uri',
-    'url',
     'tutor_frontend_dashboard_url',
+    'uri',
+    'wc_ajax_url',
   ];
   const inlineUrlPattern = new RegExp(
-    `((?:["'])?(?:${inlineUrlKeys.join('|')})(?:["'])?\\s*:\\s*)(["'])([^"']+)\\2`,
+    `(^|[\\s{,(])((?:["'])?(?:${inlineUrlKeys.join('|')})(?:["'])?\\s*:\\s*)(["'])([^"']+)\\3`,
     'gi',
   );
 
-  return body.replace(inlineUrlPattern, (match, prefix, quote, rawValue) => {
+  return body.replace(inlineUrlPattern, (match, boundary, prefix, quote, rawValue) => {
     const rewritten = normalizeUrlLikeValue(rawValue, profileBasePath);
-    return rewritten === rawValue ? match : `${prefix}${quote}${rewritten}${quote}`;
+    return rewritten === rawValue ? match : `${boundary}${prefix}${quote}${rewritten}${quote}`;
   });
 }
 
@@ -889,7 +902,7 @@ function rewriteCssResponse(body, profileBasePath) {
 }
 
 function isUrlLikeJsonKey(key) {
-  return /(?:^|_)(?:ajaxurl|ajax_url|endpoint|href|link|next_url|permalink|redirect|redirect_url|src|uri|url)$|^(?:home_url|logout_url|site_url|path)$/i.test(
+  return /^(?:ajaxurl|ajax_url|cart_url|home_url|logout_url|next_url|redirect|redirect_url|resturl|site_url|tutor_frontend_dashboard_url|uri|wc_ajax_url)$/i.test(
     key || '',
   );
 }
