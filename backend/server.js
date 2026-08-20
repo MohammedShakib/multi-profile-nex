@@ -294,7 +294,11 @@ function isLessonPathname(pathname = '') {
   return /\/lessons\/[^/?#]+/i.test(pathname);
 }
 
-function buildOriginalLessonUrl(pathname, search = '', profileBasePath = '') {
+function isOriginalSiteOnlyPathname(pathname = '') {
+  return /^\/courses\/[^?#]+/i.test(pathname) || isLessonPathname(pathname);
+}
+
+function buildOriginalSiteOnlyUrl(pathname, search = '', profileBasePath = '') {
   if (typeof pathname !== 'string' || !pathname) {
     return null;
   }
@@ -303,7 +307,7 @@ function buildOriginalLessonUrl(pathname, search = '', profileBasePath = '') {
     ? (pathname.slice(profileBasePath.length) || '/')
     : pathname;
 
-  if (!isLessonPathname(upstreamPath)) {
+  if (!isOriginalSiteOnlyPathname(upstreamPath)) {
     return null;
   }
 
@@ -836,8 +840,8 @@ function rewriteHtmlAttributeUrls(body, profileBasePath) {
   });
 }
 
-function rewriteLessonAnchorUrls(body, profileBasePath) {
-  return body.replace(/(<a\b[^>]*\bhref=)(["'])(.*?)\2/gi, (match, prefix, quote, rawValue) => {
+function rewriteOriginalSiteOnlyNavigationUrls(body, profileBasePath) {
+  return body.replace(/\b(href|data-href|data-url)\s*=\s*(["'])(.*?)\2/gi, (match, attribute, quote, rawValue) => {
     const originalUrl = buildUpstreamUrlFromProxyValue(rawValue, profileBasePath);
 
     if (!originalUrl) {
@@ -847,11 +851,11 @@ function rewriteLessonAnchorUrls(body, profileBasePath) {
     const pathnameWithQuery = originalUrl.replace(/^https?:\/\/[^/]+/i, '');
     const pathname = pathnameWithQuery.split('?')[0] || '';
 
-    if (!isLessonPathname(pathname)) {
+    if (!isOriginalSiteOnlyPathname(pathname)) {
       return match;
     }
 
-    return `${prefix}${quote}${originalUrl}${quote}`;
+    return `${attribute}=${quote}${originalUrl}${quote}`;
   });
 }
 
@@ -915,7 +919,7 @@ function rewriteHtmlResponse(body, profileBasePath, requestUrl = '') {
   const sanitizedBody = body.replace(/<base\b[^>]*>/gi, '');
   const rewrittenBody = rewriteInlineConfigUrls(
     rewriteHtmlSrcsetUrls(
-      rewriteLessonAnchorUrls(
+      rewriteOriginalSiteOnlyNavigationUrls(
         rewriteHtmlAttributeUrls(
           rewriteLoginRedirectTargets(sanitizedBody, profileBasePath),
           profileBasePath,
@@ -1190,13 +1194,13 @@ function handleProxyError(profileName, error, req, res) {
   }
 }
 
-function shouldRedirectLessonRequest(req) {
+function shouldRedirectOriginalSiteOnlyRequest(req) {
   if (!['GET', 'HEAD'].includes(req.method)) {
     return false;
   }
 
   const pathname = req.path || '';
-  if (!isLessonPathname(pathname)) {
+  if (!isOriginalSiteOnlyPathname(pathname)) {
     return false;
   }
 
@@ -1300,12 +1304,12 @@ app.use('/proxy/:profileName', (req, res, next) => {
     return;
   }
 
-  if (shouldRedirectLessonRequest(req)) {
+  if (shouldRedirectOriginalSiteOnlyRequest(req)) {
     const queryIndex = req.originalUrl.indexOf('?');
     const search = queryIndex >= 0 ? req.originalUrl.slice(queryIndex) : '';
-    const lessonUrl = buildOriginalLessonUrl(req.path || '', search, profileBasePath);
-    if (lessonUrl) {
-      res.redirect(302, lessonUrl);
+    const handoffUrl = buildOriginalSiteOnlyUrl(req.path || '', search, profileBasePath);
+    if (handoffUrl) {
+      res.redirect(302, handoffUrl);
       return;
     }
   }
