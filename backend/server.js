@@ -490,7 +490,7 @@ function createProfileSwitcher(profileBasePath) {
         var nextPath = window.location.pathname.indexOf(currentBase) === 0
           ? targetBase + window.location.pathname.slice(currentBase.length)
           : targetBase + '/dashboard/';
-        window.location.href = nextPath + window.location.search + window.location.hash;
+        window.location.href = window.location.origin + nextPath + window.location.search + window.location.hash;
       }
       if (homeButton) {
         homeButton.addEventListener('mouseenter', function () {
@@ -500,7 +500,7 @@ function createProfileSwitcher(profileBasePath) {
           homeButton.style.background = 'rgba(255,255,255,.07)';
         });
         homeButton.addEventListener('click', function () {
-          window.location.href = '/';
+          window.location.href = window.location.origin + '/';
         });
       }
       if (!button) return;
@@ -532,7 +532,7 @@ function createProfileSwitcher(profileBasePath) {
       });
       if (addButton) {
         addButton.addEventListener('click', function () {
-          window.location.href = '/?addProfile=1';
+          window.location.href = window.location.origin + '/?addProfile=1';
         });
       }
       document.addEventListener('click', function (event) {
@@ -718,6 +718,9 @@ function createLoginRedirectGuard(profileBasePath) {
     (function () {
       var profileBasePath = '${profileBasePath}';
       var dashboardPath = profileBasePath + '/dashboard/';
+      function dashboardUrl() {
+        return window.location.origin + dashboardPath;
+      }
       function normalizeProxyUrl(value) {
         if (!value || typeof value !== 'string') return value;
         var url = value.trim();
@@ -751,13 +754,14 @@ function createLoginRedirectGuard(profileBasePath) {
       }
       function enforceDashboardTarget() {
         var inputs = document.querySelectorAll('input[name="digits_redirect_page"]');
+        var absoluteDashboardUrl = dashboardUrl();
         for (var index = 0; index < inputs.length; index += 1) {
-          inputs[index].value = dashboardPath;
+          inputs[index].value = absoluteDashboardUrl;
         }
-        if (window.dig_log_obj) window.dig_log_obj.uri = dashboardPath;
+        if (window.dig_log_obj) window.dig_log_obj.uri = absoluteDashboardUrl;
         if (window.dig_log_obj) window.dig_log_obj.ajax_url = profileBasePath + '/wp-admin/admin-ajax.php';
-        if (window.dig_mdet) window.dig_mdet.uri = dashboardPath;
-        if (window._tutorobject) window._tutorobject.tutor_frontend_dashboard_url = dashboardPath;
+        if (window.dig_mdet) window.dig_mdet.uri = absoluteDashboardUrl;
+        if (window._tutorobject) window._tutorobject.tutor_frontend_dashboard_url = absoluteDashboardUrl;
       }
       function patchDigitsRedirect() {
         if (typeof window.digits_redirect !== 'function' || window.digits_redirect.__novonexRedirectPatch) return;
