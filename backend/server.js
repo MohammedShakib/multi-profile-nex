@@ -232,7 +232,12 @@ function normalizeUrlLikeValue(value, profileBasePath, { allowRootRelative = tru
     return trimmed.replace(/^https?:\/\/(?:www\.)?nexcourses\.com/i, profileBasePath);
   }
 
-  if (allowRootRelative && trimmed.startsWith('/') && !trimmed.startsWith('/proxy/')) {
+  if (
+    allowRootRelative
+    && trimmed.startsWith('/')
+    && !trimmed.startsWith('/proxy/')
+    && !trimmed.startsWith('//')
+  ) {
     return `${profileBasePath}${trimmed}`;
   }
 
