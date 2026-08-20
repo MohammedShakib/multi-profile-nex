@@ -295,14 +295,11 @@ function isLessonPathname(pathname = '') {
 }
 
 function buildOriginalLessonUrl(pathname, search = '', profileBasePath = '') {
-  if (typeof pathname !== 'string' || !pathname) {
+  if (typeof pathname !== 'string' || !pathname.startsWith(profileBasePath)) {
     return null;
   }
 
-  const upstreamPath = pathname.startsWith(profileBasePath)
-    ? (pathname.slice(profileBasePath.length) || '/')
-    : pathname;
-
+  const upstreamPath = pathname.slice(profileBasePath.length) || '/';
   if (!isLessonPathname(upstreamPath)) {
     return null;
   }
