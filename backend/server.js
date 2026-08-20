@@ -180,6 +180,65 @@ function rewriteLocationHeader(proxyRes, profileBasePath) {
   }
 }
 
+function isSkippableUrl(value) {
+  return (
+    !value
+    || value.startsWith('#')
+    || value.startsWith('?')
+    || /^(?:data|mailto|tel|javascript|blob|about):/i.test(value)
+  );
+}
+
+function normalizeUrlLikeValue(value, profileBasePath, { allowRootRelative = true } = {}) {
+  if (typeof value !== 'string') {
+    return value;
+  }
+
+  const trimmed = value.trim();
+
+  if (!trimmed || isSkippableUrl(trimmed)) {
+    return value;
+  }
+
+  if (trimmed === 'proxy' || trimmed === '/proxy' || trimmed === './proxy') {
+    return `${profileBasePath}/dashboard/`;
+  }
+
+  if (trimmed.startsWith('//proxy/')) {
+    return trimmed.slice(1);
+  }
+
+  if (trimmed.startsWith('https://proxy/') || trimmed.startsWith('http://proxy/')) {
+    return trimmed.replace(/^https?:\/\/proxy/i, '');
+  }
+
+  if (trimmed.startsWith('./proxy/')) {
+    return `/${trimmed.slice(2)}`;
+  }
+
+  if (trimmed.startsWith('proxy/')) {
+    return `/${trimmed}`;
+  }
+
+  if (trimmed.startsWith('//nexcourses.com/') || trimmed.startsWith('//www.nexcourses.com/')) {
+    return trimmed.replace(/^\/\/(?:www\.)?nexcourses\.com/i, profileBasePath);
+  }
+
+  if (
+    trimmed.startsWith(TARGET_ORIGIN)
+    || trimmed.startsWith('https://www.nexcourses.com')
+    || trimmed.startsWith('http://www.nexcourses.com')
+  ) {
+    return trimmed.replace(/^https?:\/\/(?:www\.)?nexcourses\.com/i, profileBasePath);
+  }
+
+  if (allowRootRelative && trimmed.startsWith('/') && !trimmed.startsWith('/proxy/')) {
+    return `${profileBasePath}${trimmed}`;
+  }
+
+  return value;
+}
+
 function isCacheableAssetRequest(req) {
   return cacheableAssetExtensions.has(path.extname(req.path || '').toLowerCase());
 }
@@ -487,70 +546,152 @@ function createProfileSwitcher(profileBasePath) {
 </div>`;
 }
 
-function rewriteTextResponse(body, profileBasePath, contentType = '', requestUrl = '') {
-  const escapedTarget = TARGET_ORIGIN.replace(/\//g, '\\/');
-  const escapedProfilePath = profileBasePath.replace(/\//g, '\\/');
+function rewriteHtmlAttributeUrls(body, profileBasePath) {
+  const attributePattern = /\b(href|src|action|poster|data-src|data-href|data-url)\s*=\s*(["'])(.*?)\2/gi;
 
-  const rewrittenBody = rewriteLoginRedirectTargets(body
-    .replace(/<base\b[^>]*>/gi, '')
-    .replaceAll(`${TARGET_ORIGIN}/`, `${profileBasePath}/`)
-    .replaceAll(TARGET_ORIGIN, profileBasePath)
-    .replaceAll('//nexcourses.com/', `${profileBasePath}/`)
-    .replaceAll('//www.nexcourses.com/', `${profileBasePath}/`)
-    .replaceAll(`${escapedTarget}\\/`, `${escapedProfilePath}\\/`)
-    .replaceAll(escapedTarget, escapedProfilePath)
-    .replaceAll('\\/\\/nexcourses.com\\/', `${escapedProfilePath}\\/`)
-    .replaceAll('\\/\\/www.nexcourses.com\\/', `${escapedProfilePath}\\/`)
-    .replace(
-      /(["'`])dashboard\/(?![A-Za-z0-9_-])/g,
-      (_match, quote) => `${quote}${profileBasePath}/dashboard/`,
-    )
-    .replace(
-      /(["'`])\\\/dashboard\\\/(?![A-Za-z0-9_-])/g,
-      (_match, quote) => `${quote}${escapedProfilePath}\\/dashboard\\/`,
-    )
-    .replace(
-      /\b(href|src|action)=("|')\/(?!\/|proxy\/|#)/gi,
-      (_match, attribute, quote) => `${attribute}=${quote}${profileBasePath}/`,
-    )
-    .replace(
-      /(["'`])\/(?!\/|proxy\/|#|>)/g,
-      (_match, quote) => `${quote}${profileBasePath}/`,
-    )
-    .replace(
-      /(["'`])\\\/(?!\\\/|proxy\\\/|#|>)/g,
-      (_match, quote) => `${quote}${escapedProfilePath}\\/`,
-    )
-    .replace(
-      /\burl\((["']?)\/(?!\/|proxy\/|#)/gi,
-      (_match, quote) => `url(${quote}${profileBasePath}/`,
-    )
-    .replaceAll('https://proxy/', '/proxy/')
-    .replaceAll('http://proxy/', '/proxy/')
-    .replaceAll('//proxy/', '/proxy/')
-    .replaceAll('https:\\/\\/proxy\\/', '\\/proxy\\/')
-    .replaceAll('http:\\/\\/proxy\\/', '\\/proxy\\/')
-    .replaceAll('\\/\\/proxy\\/', '\\/proxy\\/')
-    .replace(
-      'function parse_redirect_url(redirect){',
-      String.raw`function parse_redirect_url(redirect){if(typeof redirect==='string'){redirect=redirect.replace(/^https?:\/\/proxy/i,'').replace(/^\/\/proxy/i,'').replace(/^\.\/proxy\//i,'/proxy/').replace(/^proxy\//i,'/proxy/');}if(typeof redirect==='string'&&redirect.indexOf('/proxy/')===0){window.location.href=window.location.origin+redirect;return;}`,
-    ), profileBasePath);
+  return body.replace(attributePattern, (match, attribute, quote, rawValue) => {
+    const rewritten = normalizeUrlLikeValue(rawValue, profileBasePath);
+    return rewritten === rawValue ? match : `${attribute}=${quote}${rewritten}${quote}`;
+  });
+}
 
-  if (/text\/html/i.test(contentType)) {
-    const isLoginPage = requestUrl.includes(`${profileBasePath}/login`);
-    const injectedTools = `${isLoginPage ? createLoginRedirectGuard(profileBasePath) : ''}${createProfileSwitcher(profileBasePath)}`;
+function rewriteHtmlSrcsetUrls(body, profileBasePath) {
+  return body.replace(/\bsrcset\s*=\s*(["'])(.*?)\1/gi, (match, quote, rawValue) => {
+    const rewritten = rawValue
+      .split(',')
+      .map((candidate) => {
+        const trimmed = candidate.trim();
 
-    if (/<\/body>/i.test(rewrittenBody)) {
-      return rewrittenBody.replace(
-        /<\/body>/i,
-        `${injectedTools}</body>`,
-      );
-    }
+        if (!trimmed) {
+          return candidate;
+        }
 
-    return rewrittenBody;
+        const [url, ...descriptor] = trimmed.split(/\s+/);
+        const rewrittenUrl = normalizeUrlLikeValue(url, profileBasePath);
+
+        return [rewrittenUrl, ...descriptor].join(' ');
+      })
+      .join(', ');
+
+    return rewritten === rawValue ? match : `srcset=${quote}${rewritten}${quote}`;
+  });
+}
+
+function rewriteCssUrls(body, profileBasePath) {
+  return body.replace(/url\(\s*(["']?)(.*?)\1\s*\)/gi, (match, quote, rawValue) => {
+    const rewritten = normalizeUrlLikeValue(rawValue, profileBasePath);
+    return rewritten === rawValue ? match : `url(${quote}${rewritten}${quote})`;
+  });
+}
+
+function rewriteInlineConfigUrls(body, profileBasePath) {
+  const inlineUrlKeys = [
+    'ajaxurl',
+    'ajax_url',
+    'home_url',
+    'href',
+    'link',
+    'logout_url',
+    'next_url',
+    'redirect',
+    'redirect_url',
+    'site_url',
+    'src',
+    'uri',
+    'url',
+    'tutor_frontend_dashboard_url',
+  ];
+  const inlineUrlPattern = new RegExp(
+    `((?:["'])?(?:${inlineUrlKeys.join('|')})(?:["'])?\\s*:\\s*)(["'])([^"']+)\\2`,
+    'gi',
+  );
+
+  return body.replace(inlineUrlPattern, (match, prefix, quote, rawValue) => {
+    const rewritten = normalizeUrlLikeValue(rawValue, profileBasePath);
+    return rewritten === rawValue ? match : `${prefix}${quote}${rewritten}${quote}`;
+  });
+}
+
+function rewriteHtmlResponse(body, profileBasePath, requestUrl = '') {
+  const sanitizedBody = body.replace(/<base\b[^>]*>/gi, '');
+  const rewrittenBody = rewriteInlineConfigUrls(
+    rewriteHtmlSrcsetUrls(
+      rewriteHtmlAttributeUrls(
+        rewriteLoginRedirectTargets(sanitizedBody, profileBasePath),
+        profileBasePath,
+      ),
+      profileBasePath,
+    ),
+    profileBasePath,
+  );
+  const isLoginPage = requestUrl.includes(`${profileBasePath}/login`);
+  const injectedTools = `${isLoginPage ? createLoginRedirectGuard(profileBasePath) : ''}${createProfileSwitcher(profileBasePath)}`;
+
+  if (/<\/body>/i.test(rewrittenBody)) {
+    return rewrittenBody.replace(
+      /<\/body>/i,
+      `${injectedTools}</body>`,
+    );
   }
 
   return rewrittenBody;
+}
+
+function rewriteCssResponse(body, profileBasePath) {
+  return rewriteCssUrls(body, profileBasePath);
+}
+
+function isUrlLikeJsonKey(key) {
+  return /(?:^|_)(?:ajaxurl|ajax_url|endpoint|href|link|next_url|permalink|redirect|redirect_url|src|uri|url)$|^(?:home_url|logout_url|site_url|path)$/i.test(
+    key || '',
+  );
+}
+
+function rewriteJsonValue(value, profileBasePath, currentKey = '') {
+  if (typeof value === 'string') {
+    const shouldNormalize =
+      isUrlLikeJsonKey(currentKey)
+      || value.startsWith(TARGET_ORIGIN)
+      || value.startsWith('https://www.nexcourses.com')
+      || value.startsWith('http://www.nexcourses.com')
+      || value.startsWith('//nexcourses.com/')
+      || value.startsWith('//www.nexcourses.com/')
+      || value.startsWith('https://proxy/')
+      || value.startsWith('http://proxy/')
+      || value.startsWith('//proxy/')
+      || value.startsWith('./proxy/')
+      || value.startsWith('proxy/');
+
+    return shouldNormalize
+      ? normalizeUrlLikeValue(value, profileBasePath, {
+        allowRootRelative: isUrlLikeJsonKey(currentKey),
+      })
+      : value;
+  }
+
+  if (Array.isArray(value)) {
+    return value.map((item) => rewriteJsonValue(item, profileBasePath, currentKey));
+  }
+
+  if (value && typeof value === 'object') {
+    return Object.fromEntries(
+      Object.entries(value).map(([key, nestedValue]) => [
+        key,
+        rewriteJsonValue(nestedValue, profileBasePath, key),
+      ]),
+    );
+  }
+
+  return value;
+}
+
+function rewriteJsonResponse(body, profileBasePath) {
+  try {
+    const parsed = JSON.parse(body);
+    return JSON.stringify(rewriteJsonValue(parsed, profileBasePath));
+  } catch {
+    return body;
+  }
 }
 
 function rewriteLoginRedirectTargets(body, profileBasePath) {
@@ -581,6 +722,12 @@ function createLoginRedirectGuard(profileBasePath) {
         if (!value || typeof value !== 'string') return value;
         var url = value.trim();
         if (url === 'proxy' || url === '/proxy' || url === './proxy') return dashboardPath;
+        if (url.indexOf('https://nexcourses.com') === 0 || url.indexOf('http://nexcourses.com') === 0 || url.indexOf('https://www.nexcourses.com') === 0 || url.indexOf('http://www.nexcourses.com') === 0) {
+          return url.replace(/^https?:\\/\\/(?:www\\.)?nexcourses\\.com/i, profileBasePath);
+        }
+        if (url.indexOf('//nexcourses.com/') === 0 || url.indexOf('//www.nexcourses.com/') === 0) {
+          return url.replace(/^\\/\\/(?:www\\.)?nexcourses\\.com/i, profileBasePath);
+        }
         if (url.indexOf('https://proxy/' + profileBasePath.slice('/proxy/'.length) + '/') === 0) {
           return profileBasePath + url.slice(('https://proxy/' + profileBasePath.slice('/proxy/'.length)).length);
         }
@@ -595,111 +742,31 @@ function createLoginRedirectGuard(profileBasePath) {
         if (url.indexOf('/dashboard') === 0 || url.indexOf('dashboard') === 0) return dashboardPath;
         return value;
       }
-      function isLoginRoute() {
-        return window.location.pathname.indexOf(profileBasePath + '/login') === 0;
-      }
       function enforceDashboardTarget() {
         var inputs = document.querySelectorAll('input[name="digits_redirect_page"]');
         for (var index = 0; index < inputs.length; index += 1) {
           inputs[index].value = dashboardPath;
         }
         if (window.dig_log_obj) window.dig_log_obj.uri = dashboardPath;
+        if (window.dig_log_obj) window.dig_log_obj.ajax_url = profileBasePath + '/wp-admin/admin-ajax.php';
         if (window.dig_mdet) window.dig_mdet.uri = dashboardPath;
         if (window._tutorobject) window._tutorobject.tutor_frontend_dashboard_url = dashboardPath;
       }
-      function normalizeResponseValue(value) {
-        if (typeof value !== 'string') return value;
-        var normalized = value.trim();
-        if (normalized.indexOf('https://proxy/' + profileBasePath.slice('/proxy/'.length) + '/') === 0) {
-          return profileBasePath + normalized.slice(('https://proxy/' + profileBasePath.slice('/proxy/'.length)).length);
-        }
-        if (normalized.indexOf('http://proxy/' + profileBasePath.slice('/proxy/'.length) + '/') === 0) {
-          return profileBasePath + normalized.slice(('http://proxy/' + profileBasePath.slice('/proxy/'.length)).length);
-        }
-        if (normalized.indexOf('https://proxy/') === 0) return normalized.replace('https://proxy', '');
-        if (normalized.indexOf('http://proxy/') === 0) return normalized.replace('http://proxy', '');
-        if (normalized.indexOf('//proxy/') === 0) return normalized.slice(1);
-        if (normalized.indexOf('./proxy/') === 0) return '/' + normalized.slice(2);
-        if (normalized.indexOf('proxy/') === 0) return '/' + normalized;
-        return value;
-      }
-      function normalizeResponseRedirects(value) {
-        if (!value || typeof value !== 'object') return value;
-        Object.keys(value).forEach(function (key) {
-          if (typeof value[key] === 'string') {
-            value[key] = normalizeResponseValue(value[key]);
-          } else if (value[key] && typeof value[key] === 'object') {
-            normalizeResponseRedirects(value[key]);
+      function patchDigitsRedirect() {
+        if (typeof window.digits_redirect !== 'function' || window.digits_redirect.__novonexRedirectPatch) return;
+        var originalRedirect = window.digits_redirect;
+        window.digits_redirect = function (redirect) {
+          enforceDashboardTarget();
+          var normalized = normalizeProxyUrl(typeof redirect === 'string' ? redirect : '');
+          if (normalized && normalized !== redirect) {
+            arguments[0] = normalized;
           }
-        });
-        return value;
-      }
-      function patchAjaxRedirects() {
-        if (!window.jQuery || !window.jQuery.ajax || window.jQuery.ajax.__novonexRedirectPatch) return;
-        var originalAjax = window.jQuery.ajax;
-        var patchedAjax = function (options) {
-          if (options && typeof options === 'object' && typeof options.success === 'function') {
-            var originalSuccess = options.success;
-            options = Object.assign({}, options, {
-              success: function (response) {
-                normalizeResponseRedirects(response);
-                return originalSuccess.apply(this, arguments);
-              },
-            });
-          }
-          return originalAjax.apply(this, arguments.length > 1 ? arguments : [options]);
-        };
-        patchedAjax.__novonexRedirectPatch = true;
-        window.jQuery.ajax = patchedAjax;
-      }
-      function patchDigitsRedirectParser() {
-        if (window.parse_redirect_url && !window.parse_redirect_url.__novonexRedirectPatch) {
-          var originalParser = window.parse_redirect_url;
-          window.parse_redirect_url = function (redirect) {
-            var normalized = normalizeProxyUrl(String(redirect || ''));
-            if (normalized && normalized.indexOf(profileBasePath) === 0) {
-              window.location.replace(window.location.origin + normalized);
-              return;
-            }
-            if (normalized === dashboardPath || normalized.indexOf('/dashboard') === 0 || normalized.indexOf('dashboard') === 0) {
-              window.location.replace(window.location.origin + dashboardPath);
-              return;
-            }
-            return originalParser.apply(this, arguments);
-          };
-          window.parse_redirect_url.__novonexRedirectPatch = true;
+          return originalRedirect.apply(this, arguments);
         }
+        window.digits_redirect.__novonexRedirectPatch = true;
       }
-      function hasSuccessMessage() {
-        var text = (document.body && document.body.innerText || '').toLowerCase();
-        return text.indexOf('login successful') !== -1
-          || text.indexOf('redirecting') !== -1 && text.indexOf('yay') !== -1;
-      }
-      function goDashboard() {
-        enforceDashboardTarget();
-        if (window.location.pathname !== dashboardPath || window.location.hostname === 'proxy') {
-          window.location.replace(window.location.origin + dashboardPath);
-        }
-      }
-      if (!isLoginRoute()) return;
       enforceDashboardTarget();
-      patchAjaxRedirects();
-      patchDigitsRedirectParser();
-      var checks = 0;
-      var interval = window.setInterval(function () {
-        checks += 1;
-        enforceDashboardTarget();
-        patchAjaxRedirects();
-        patchDigitsRedirectParser();
-        if (hasSuccessMessage()) {
-          window.clearInterval(interval);
-          goDashboard();
-          window.setTimeout(goDashboard, 30);
-        }
-        if (checks > 80) {
-          window.clearInterval(interval);
-        }
-      }, 100);
+      patchDigitsRedirect();
       document.addEventListener('submit', function () {
         enforceDashboardTarget();
       }, true);
@@ -707,24 +774,43 @@ function createLoginRedirectGuard(profileBasePath) {
         var target = event.target;
         if (target && target.closest && target.closest('button, input[type="submit"], .digits_login, .digit_send_otp')) {
           enforceDashboardTarget();
+          patchDigitsRedirect();
         }
       }, true);
-      window.addEventListener('beforeunload', function () {
-        var normalized = normalizeProxyUrl(window.location.pathname);
-        if (normalized !== window.location.pathname && normalized.indexOf('/proxy/') === 0) {
-          window.history.replaceState(null, '', normalized);
-        }
-      });
+      window.setTimeout(function () {
+        enforceDashboardTarget();
+        patchDigitsRedirect();
+      }, 50);
     })();
   </script>`;
 }
 
-function shouldRewriteResponseBody(proxyRes) {
+function isJsonRewriteRequest(req) {
+  const originalUrl = req.originalUrl || '';
+
+  return (
+    originalUrl.includes('/wp-admin/admin-ajax.php')
+    || originalUrl.includes('/wp-json/')
+    || originalUrl.includes('wc-ajax=')
+  );
+}
+
+function getResponseRewriteKind(req, proxyRes) {
   const contentType = proxyRes.headers['content-type'] || '';
 
-  return /(text\/html|text\/css|application\/javascript|application\/x-javascript|text\/javascript|application\/json|text\/json)/i.test(
-    contentType,
-  );
+  if (/text\/html/i.test(contentType)) {
+    return 'html';
+  }
+
+  if (/text\/css/i.test(contentType)) {
+    return 'css';
+  }
+
+  if (/(application\/json|text\/json)/i.test(contentType) && isJsonRewriteRequest(req)) {
+    return 'json';
+  }
+
+  return null;
 }
 
 function shouldInterceptRequest(req) {
@@ -737,24 +823,19 @@ function shouldInterceptRequest(req) {
     return true;
   }
 
-  if (
-    acceptHeader.includes('text/html') ||
-    acceptHeader.includes('application/json') ||
-    acceptHeader.includes('text/javascript') ||
-    acceptHeader.includes('application/javascript')
-  ) {
+  if (acceptHeader.includes('text/html')) {
     return true;
   }
 
-  if (
-    originalUrl.includes('/wp-admin/admin-ajax.php') ||
-    originalUrl.includes('/wp-json/') ||
-    originalUrl.includes('wc-ajax=')
-  ) {
+  if (extension === '.css') {
     return true;
   }
 
-  return ['.html', '.htm', '.css', '.js', '.mjs', '.json'].includes(extension);
+  if (isJsonRewriteRequest(req)) {
+    return true;
+  }
+
+  return ['.html', '.htm'].includes(extension);
 }
 
 function handleProxyError(profileName, error, req, res) {
@@ -797,16 +878,27 @@ function createProfileProxyRouter(profileName) {
     createProfileProxyOptions(profileName, profileBasePath),
   );
   const interceptResponseBody = responseInterceptor(async (responseBuffer, proxyRes, req) => {
-    if (!shouldRewriteResponseBody(proxyRes)) {
+    const rewriteKind = getResponseRewriteKind(req, proxyRes);
+
+    if (!rewriteKind) {
       return responseBuffer;
     }
 
-    return rewriteTextResponse(
-      responseBuffer.toString('utf8'),
-      profileBasePath,
-      proxyRes.headers['content-type'] || '',
-      req.originalUrl || '',
-    );
+    const responseText = responseBuffer.toString('utf8');
+
+    if (rewriteKind === 'html') {
+      return rewriteHtmlResponse(
+        responseText,
+        profileBasePath,
+        req.originalUrl || '',
+      );
+    }
+
+    if (rewriteKind === 'css') {
+      return rewriteCssResponse(responseText, profileBasePath);
+    }
+
+    return rewriteJsonResponse(responseText, profileBasePath);
   });
   const rewriteProxy = createProxyMiddleware({
     ...createProfileProxyOptions(profileName, profileBasePath),
