@@ -807,6 +807,88 @@ function createDebugOverlayScript() {
   </script>`;
 }
 
+function createOriginalSiteHandoffScript(profileBasePath) {
+  return `<script>
+    (function () {
+      var profileBasePath = '${profileBasePath}';
+      var targetOrigin = '${TARGET_ORIGIN}';
+
+      function toOriginalUrl(urlLike) {
+        if (!urlLike || typeof urlLike !== 'string') {
+          return null;
+        }
+
+        try {
+          var parsed = new URL(urlLike, window.location.origin);
+          if (!parsed.pathname.startsWith(profileBasePath)) {
+            return null;
+          }
+          var upstreamPath = parsed.pathname.slice(profileBasePath.length) || '/';
+          return targetOrigin + upstreamPath + parsed.search + parsed.hash;
+        } catch (error) {
+          return null;
+        }
+      }
+
+      function isLessonUrl(urlLike) {
+        var originalUrl = toOriginalUrl(urlLike);
+        return Boolean(originalUrl && /\\/lessons\\//i.test(originalUrl));
+      }
+
+      function openOriginalLesson(urlLike) {
+        var originalUrl = toOriginalUrl(urlLike);
+        if (!originalUrl) {
+          return false;
+        }
+        window.location.assign(originalUrl);
+        return true;
+      }
+
+      document.addEventListener('click', function (event) {
+        var anchor = event.target && event.target.closest ? event.target.closest('a[href]') : null;
+        if (!anchor) {
+          return;
+        }
+
+        var href = anchor.getAttribute('href') || '';
+        if (!isLessonUrl(href)) {
+          return;
+        }
+
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        openOriginalLesson(href);
+      }, true);
+
+      if (!/\\/lessons\\//i.test(window.location.pathname)) {
+        return;
+      }
+
+      function mountOpenOriginalButton() {
+        if (document.getElementById('novonex-open-original')) {
+          return;
+        }
+
+        var button = document.createElement('button');
+        button.id = 'novonex-open-original';
+        button.type = 'button';
+        button.textContent = 'Open This Lesson On NexCourses';
+        button.style.cssText = 'position:fixed;left:16px;top:16px;z-index:2147483646;border:0;border-radius:999px;background:#2563eb;color:#fff;padding:10px 14px;font:700 13px/1.2 Inter,Arial,sans-serif;box-shadow:0 14px 32px rgba(37,99,235,.35);cursor:pointer;';
+        button.addEventListener('click', function () {
+          openOriginalLesson(window.location.href);
+        });
+        document.documentElement.appendChild(button);
+      }
+
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', mountOpenOriginalButton, { once: true });
+      } else {
+        mountOpenOriginalButton();
+      }
+    })();
+  </script>`;
+}
+
 function rewriteHtmlAttributeUrls(body, profileBasePath) {
   const attributePattern = /\b(href|src|action|poster|data-src|data-href|data-url)\s*=\s*(["'])(.*?)\2/gi;
 
@@ -885,7 +967,7 @@ function rewriteHtmlResponse(body, profileBasePath, requestUrl = '') {
     profileBasePath,
   );
   const isLoginPage = requestUrl.includes(`${profileBasePath}/login`);
-  const injectedTools = `${isLoginPage ? createLoginRedirectGuard(profileBasePath) : ''}${createProfileSwitcher(profileBasePath)}${createDebugOverlayScript()}`;
+  const injectedTools = `${isLoginPage ? createLoginRedirectGuard(profileBasePath) : ''}${createProfileSwitcher(profileBasePath)}${createOriginalSiteHandoffScript(profileBasePath)}${createDebugOverlayScript()}`;
 
   if (/<\/body>/i.test(rewrittenBody)) {
     return rewrittenBody.replace(
